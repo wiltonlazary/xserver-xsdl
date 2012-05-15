@@ -49,6 +49,11 @@ static Bool sdlKeyboardInit(KdKeyboardInfo *ki);
 static Bool sdlMouseInit(KdPointerInfo *pi);
 static void sdlMouseFini(KdPointerInfo *pi);
 
+static Status MouseEnable (KdPointerInfo *pi);
+static void MouseDisable (KdPointerInfo *pi);
+static Status KeyboardEnable (KdKeyboardInfo *ki);
+static void KeyboardDisable (KdKeyboardInfo *ki);
+
 void *sdlShadowWindow (ScreenPtr pScreen, CARD32 row, CARD32 offset, int mode, CARD32 *size, void *closure);
 void sdlShadowUpdate (ScreenPtr pScreen, shadowBufPtr pBuf);
 
@@ -58,15 +63,19 @@ KdKeyboardInfo *sdlKeyboard = NULL;
 KdPointerInfo *sdlPointer = NULL;
 
 KdKeyboardDriver sdlKeyboardDriver = {
-    .name = "keyboard",
+    .name = "SDLkeyboard",
     .Init = sdlKeyboardInit,
     .Fini = sdlKeyboardFini,
+    .Enable = KeyboardEnable,
+    .Disable = KeyboardDisable,
 };
 
 KdPointerDriver sdlMouseDriver = {
-    .name = "mouse",
+    .name = "SDLmouse",
     .Init = sdlMouseInit,
     .Fini = sdlMouseFini,
+    .Enable = MouseEnable,
+    .Disable = MouseDisable,
 };
 
 
@@ -82,7 +91,6 @@ struct SdlDriver
 {
 	SDL_Surface *screen;
 };
-
 
 
 static Bool sdlScreenInit(KdScreenInfo *screen)
@@ -191,16 +199,41 @@ static Bool sdlKeyboardInit(KdKeyboardInfo *ki)
 	return TRUE;
 }
 
-static Bool sdlMouseInit (KdPointerInfo *pi)
+static Status sdlMouseInit (KdPointerInfo *pi)
 {
 	dbgprintf("sdlMouseInit %p\n", pi);
 	sdlPointer = pi;
-	return TRUE;
+	pi->nAxes = 3;
+	pi->nButtons = 5;
+	/*
+	if (pi->name)
+		xfree(pi->name);
+	pi->name = strdup("SDLmouse");
+	*/
+	return Success;
 }
 
 static void sdlMouseFini(KdPointerInfo *pi)
 {
-        sdlPointer = NULL;
+	sdlPointer = NULL;
+}
+
+static Status MouseEnable (KdPointerInfo *pi)
+{
+    return Success;
+}
+
+static void MouseDisable (KdPointerInfo *pi)
+{
+}
+
+static Status KeyboardEnable (KdKeyboardInfo *ki)
+{
+    return Success;
+}
+
+static void KeyboardDisable (KdKeyboardInfo *ki)
+{
 }
 
 
@@ -224,10 +257,10 @@ void InitInput(int argc, char **argv)
 
         KdAddKeyboardDriver(&sdlKeyboardDriver);
         KdAddPointerDriver(&sdlMouseDriver);
-        
-        ki = KdParseKeyboard("keyboard");
+
+        ki = KdParseKeyboard("SDLkeyboard");
         KdAddKeyboard(ki);
-        pi = KdParsePointer("mouse");
+        pi = KdParsePointer("SDLmouse");
         KdAddPointer(pi);
 
         KdInitInput();
@@ -316,15 +349,20 @@ static void xsdlFini(void)
 	SDL_Quit();
 }
 
+static Bool xsdlEnable (ScreenPtr pScreen)
+{
+	dbgprintf("xsdlEnable\n");
+	return TRUE;
+}
+
 KdOsFuncs sdlOsFuncs={
 	.Init = xsdlInit,
 	.Fini = xsdlFini,
 	.pollEvents = sdlTimer,
+	.Enable = xsdlEnable,
 };
 
 void OsVendorInit (void)
 {
     KdOsInit (&sdlOsFuncs);
 }
-
-
