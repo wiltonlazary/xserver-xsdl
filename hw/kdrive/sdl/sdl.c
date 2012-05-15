@@ -30,6 +30,14 @@
 #include <SDL/SDL.h>
 #include <X11/keysym.h>
 
+#define DEBUG 1
+
+#ifndef DEBUG
+#define dbgprintf(...)
+#else
+#define dbgprintf(...) fprintf(stderr, __VA_ARGS__)
+#endif
+
 static void xsdlFini(void);
 static Bool sdlScreenInit(KdScreenInfo *screen);
 static Bool sdlFinishInitScreen(ScreenPtr pScreen);
@@ -80,9 +88,7 @@ struct SdlDriver
 static Bool sdlScreenInit(KdScreenInfo *screen)
 {
 	struct SdlDriver *sdlDriver=calloc(1, sizeof(struct SdlDriver));
-#ifdef DEBUG
-	printf("sdlScreenInit()\n");
-#endif
+	dbgprintf("sdlScreenInit()\n");
 	if (!screen->width || !screen->height)
 	{
 		screen->width = 640;
@@ -90,15 +96,11 @@ static Bool sdlScreenInit(KdScreenInfo *screen)
 	}
 	if (!screen->fb[0].depth)
 		screen->fb[0].depth = 4;
-#ifdef DEBUG
-	printf("Attempting for %dx%d/%dbpp mode\n", screen->width, screen->height, screen->fb[0].depth);
-#endif
+	dbgprintf("Attempting for %dx%d/%dbpp mode\n", screen->width, screen->height, screen->fb[0].depth);
 	sdlDriver->screen=SDL_SetVideoMode(screen->width, screen->height, screen->fb[0].depth, 0);
 	if(sdlDriver->screen==NULL)
 		return FALSE;
-#ifdef DEBUG
-	printf("Set %dx%d/%dbpp mode\n", sdlDriver->screen->w, sdlDriver->screen->h, sdlDriver->screen->format->BitsPerPixel);
-#endif
+	dbgprintf("Set %dx%d/%dbpp mode\n", sdlDriver->screen->w, sdlDriver->screen->h, sdlDriver->screen->format->BitsPerPixel);
 	screen->width=sdlDriver->screen->w;
 	screen->height=sdlDriver->screen->h;
 	screen->fb[0].depth=sdlDriver->screen->format->BitsPerPixel;
@@ -124,16 +126,12 @@ void sdlShadowUpdate (ScreenPtr pScreen, shadowBufPtr pBuf)
 	KdScreenPriv(pScreen);
 	KdScreenInfo *screen = pScreenPriv->screen;
 	struct SdlDriver *sdlDriver=screen->driver;
-#ifdef DEBUG
-	printf("Shadow update()\n");
-#endif
+	dbgprintf("Shadow update()\n");
 	if(SDL_MUSTLOCK(sdlDriver->screen))
 	{
 		if(SDL_LockSurface(sdlDriver->screen)<0)
 		{
-#ifdef DEBUG
-			printf("Couldn't lock SDL surface - d'oh!\n");
-#endif
+			dbgprintf("Couldn't lock SDL surface - d'oh!\n");
 			return;
 		}
 	}
@@ -150,9 +148,7 @@ void *sdlShadowWindow (ScreenPtr pScreen, CARD32 row, CARD32 offset, int mode, C
 	KdScreenInfo *screen = pScreenPriv->screen;
 	struct SdlDriver *sdlDriver=screen->driver;
 	*size=(sdlDriver->screen->w*sdlDriver->screen->format->BitsPerPixel)/8;
-#ifdef DEBUG
-	printf("Shadow window()\n");
-#endif
+	dbgprintf("Shadow window()\n");
 	return (void *)((CARD8 *)sdlDriver->screen->pixels + row * (*size) + offset);
 }
 
@@ -187,17 +183,18 @@ static void sdlKeyboardFini(KdKeyboardInfo *ki)
 
 static Bool sdlKeyboardInit(KdKeyboardInfo *ki)
 {
-        ki->minScanCode = 8;
-        ki->maxScanCode = 255;
-
+	dbgprintf("sdlKeyboardInit %p\n", ki);
+	ki->minScanCode = 8;
+	ki->maxScanCode = 255;
 	sdlKeyboard = ki;
 
-        return TRUE;
+	return TRUE;
 }
 
 static Bool sdlMouseInit (KdPointerInfo *pi)
 {
-        sdlPointer = pi;
+	dbgprintf("sdlMouseInit %p\n", pi);
+	sdlPointer = pi;
 	return TRUE;
 }
 
@@ -211,17 +208,13 @@ void InitCard(char *name)
 {
 	KdCardAttr attr;
         KdCardInfoAdd (&sdlFuncs, &attr, 0);
-#ifdef DEBUG
-	printf("InitCard: %s\n", name);
-#endif
+	dbgprintf("InitCard: %s\n", name);
 }
 
 void InitOutput(ScreenInfo *pScreenInfo, int argc, char **argv)
 {
 	KdInitOutput(pScreenInfo, argc, argv);
-#ifdef DEBUG
-	printf("InitOutput()\n");
-#endif
+	dbgprintf("InitOutput()\n");
 }
 
 void InitInput(int argc, char **argv)
@@ -265,24 +258,10 @@ void sdlTimer(void)
 	while ( SDL_PollEvent(&event) ) {
 		switch (event.type) {
 			case SDL_MOUSEMOTION:
+				dbgprintf("Mouse move %04d:%04d btns %d\n", event.motion.x, event.motion.y, mouseState);
 				KdEnqueuePointerEvent(sdlPointer, mouseState, event.motion.x, event.motion.y, 0);
 				break;
 			case SDL_MOUSEBUTTONDOWN:
-				switch(event.button.button)
-				{
-					case 1:
-						buttonState=KD_BUTTON_1;
-						break;
-					case 2:
-						buttonState=KD_BUTTON_2;
-						break;
-					case 3:
-						buttonState=KD_BUTTON_3;
-						break;
-				}
-				mouseState|=buttonState;
-				KdEnqueuePointerEvent(sdlPointer, mouseState|KD_MOUSE_DELTA, 0, 0, 0);
-				break;
 			case SDL_MOUSEBUTTONUP:
 				switch(event.button.button)
 				{
@@ -295,16 +274,27 @@ void sdlTimer(void)
 					case 3:
 						buttonState=KD_BUTTON_3;
 						break;
+					case 4: /* mouse wheel */
+						buttonState=KD_BUTTON_4;
+						break;
+					case 5:
+						buttonState=KD_BUTTON_5;
+						break;
+					default:
+						buttonState=0;
+						break;
 				}
-				mouseState &= ~buttonState;
+				if (event.type == SDL_MOUSEBUTTONDOWN)
+					mouseState|=buttonState;
+				else
+					mouseState &= ~buttonState;
+				dbgprintf("Mouse btn %s %d\n", event.type == SDL_MOUSEBUTTONDOWN ? "down" : "up", mouseState);
 				KdEnqueuePointerEvent(sdlPointer, mouseState|KD_MOUSE_DELTA, 0, 0, 0);
 				break;
 			case SDL_KEYDOWN:
 			case SDL_KEYUP:
-#ifdef DEBUG
-				printf("Keycode: %d\n", event.key.keysym.scancode);
-#endif
-			        KdEnqueueKeyboardEvent (sdlKeyboard, event.key.keysym.scancode, event.type==SDL_KEYUP);
+				dbgprintf("Keyevent down=%d code=%d\n", event.type==SDL_KEYDOWN, event.key.keysym.scancode);
+				KdEnqueueKeyboardEvent (sdlKeyboard, event.key.keysym.scancode, event.type==SDL_KEYUP);
 				break;
 
 			case SDL_QUIT:
@@ -316,9 +306,7 @@ void sdlTimer(void)
 
 static int xsdlInit(void)
 {
-#ifdef DEBUG
-	printf("Calling SDL_Init()\n");
-#endif
+	dbgprintf("Calling SDL_Init()\n");
 	return SDL_Init(SDL_INIT_VIDEO | SDL_INIT_TIMER);
 }
 
