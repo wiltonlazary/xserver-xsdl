@@ -30,18 +30,13 @@
 #include <SDL/SDL.h>
 #include <X11/keysym.h>
 
-#define DEBUG 1
+/* #define DEBUG 1 */
 
 #ifndef DEBUG
 #define dbgprintf(...)
 #else
 #define dbgprintf(...) fprintf(stderr, __VA_ARGS__)
 #endif
-
-static void xsdlFini(void);
-static Bool sdlScreenInit(KdScreenInfo *screen);
-static Bool sdlFinishInitScreen(ScreenPtr pScreen);
-static Bool sdlCreateRes(ScreenPtr pScreen);
 
 static void sdlKeyboardFini(KdKeyboardInfo *ki);
 static Bool sdlKeyboardInit(KdKeyboardInfo *ki);
@@ -53,6 +48,8 @@ static Status MouseEnable (KdPointerInfo *pi);
 static void MouseDisable (KdPointerInfo *pi);
 static Status KeyboardEnable (KdKeyboardInfo *ki);
 static void KeyboardDisable (KdKeyboardInfo *ki);
+static void KeyboardLeds (KdKeyboardInfo *ki, int leds);
+static void KeyboardBell (KdKeyboardInfo *ki, int volume, int frequency, int duration);
 
 void *sdlShadowWindow (ScreenPtr pScreen, CARD32 row, CARD32 offset, int mode, CARD32 *size, void *closure);
 void sdlShadowUpdate (ScreenPtr pScreen, shadowBufPtr pBuf);
@@ -68,6 +65,8 @@ KdKeyboardDriver sdlKeyboardDriver = {
     .Fini = sdlKeyboardFini,
     .Enable = KeyboardEnable,
     .Disable = KeyboardDisable,
+    .Leds = KeyboardLeds,
+    .Bell = KeyboardBell,
 };
 
 KdPointerDriver sdlMouseDriver = {
@@ -76,13 +75,6 @@ KdPointerDriver sdlMouseDriver = {
     .Fini = sdlMouseFini,
     .Enable = MouseEnable,
     .Disable = MouseDisable,
-};
-
-
-KdCardFuncs sdlFuncs = {
-    .scrinit = sdlScreenInit,	/* scrinit */
-    .finishInitScreen = sdlFinishInitScreen, /* finishInitScreen */
-    .createRes = sdlCreateRes,	/* createRes */
 };
 
 int mouseState=0;
@@ -189,14 +181,14 @@ static void sdlKeyboardFini(KdKeyboardInfo *ki)
         sdlKeyboard = NULL;
 }
 
-static Bool sdlKeyboardInit(KdKeyboardInfo *ki)
+static Status sdlKeyboardInit(KdKeyboardInfo *ki)
 {
 	dbgprintf("sdlKeyboardInit %p\n", ki);
-	ki->minScanCode = 8;
-	ki->maxScanCode = 255;
+	ki->minScanCode = KD_MIN_KEYCODE;
+	ki->maxScanCode = KD_MAX_KEYCODE;
 	sdlKeyboard = ki;
 
-	return TRUE;
+	return Success;
 }
 
 static Status sdlMouseInit (KdPointerInfo *pi)
@@ -205,11 +197,6 @@ static Status sdlMouseInit (KdPointerInfo *pi)
 	sdlPointer = pi;
 	pi->nAxes = 3;
 	pi->nButtons = 5;
-	/*
-	if (pi->name)
-		xfree(pi->name);
-	pi->name = strdup("SDLmouse");
-	*/
 	return Success;
 }
 
@@ -236,12 +223,12 @@ static void KeyboardDisable (KdKeyboardInfo *ki)
 {
 }
 
-
-void InitCard(char *name)
+static void KeyboardLeds (KdKeyboardInfo *ki, int leds)
 {
-	KdCardAttr attr;
-        KdCardInfoAdd (&sdlFuncs, &attr, 0);
-	dbgprintf("InitCard: %s\n", name);
+}
+
+static void KeyboardBell (KdKeyboardInfo *ki, int volume, int frequency, int duration)
+{
 }
 
 void InitOutput(ScreenInfo *pScreenInfo, int argc, char **argv)
@@ -351,7 +338,6 @@ static void xsdlFini(void)
 
 static Bool xsdlEnable (ScreenPtr pScreen)
 {
-	dbgprintf("xsdlEnable\n");
 	return TRUE;
 }
 
@@ -365,4 +351,73 @@ KdOsFuncs sdlOsFuncs={
 void OsVendorInit (void)
 {
     KdOsInit (&sdlOsFuncs);
+}
+
+static Bool sdlCardInit (KdCardInfo *card)
+{
+  return TRUE;
+}
+
+static Bool sdlInitScreen (ScreenPtr pScreen)
+{
+  KdScreenPriv(pScreen);
+  /* KdScreenInfo	*screen    = pScreenPriv->screen; */
+
+  return TRUE;
+}
+
+static void sdlPreserve (KdCardInfo *card)
+{
+}
+
+static Bool sdlEnable (ScreenPtr pScreen)
+{
+  return TRUE;
+}
+
+static Bool sdlDPMS (ScreenPtr pScreen, int mode)
+{
+  return TRUE;
+}
+
+static void sdlDisable (ScreenPtr pScreen)
+{
+}
+
+static void sdlRestore (KdCardInfo *card)
+{
+}
+
+static void sdlScreenFini (KdScreenInfo *screen)
+{
+    if (screen)
+        KdShadowFbFree (screen, 0);
+    free(screen->driver);
+    screen->driver = NULL;
+}
+
+static void sdlCardFini (KdCardInfo *card)
+{
+}
+
+KdCardFuncs sdlFuncs = {
+    .cardinit = sdlCardInit,
+    .scrinit = sdlScreenInit,
+    .initScreen = sdlInitScreen,
+    .finishInitScreen = sdlFinishInitScreen,
+    .createRes = sdlCreateRes,
+    .preserve = sdlPreserve,
+    .enable = sdlEnable,
+    .dpms = sdlDPMS,
+    .disable = sdlDisable,
+    .restore = sdlRestore,
+    .scrfini = sdlScreenFini,
+    .cardfini = sdlCardFini,
+};
+
+void InitCard(char *name)
+{
+	KdCardAttr attr;
+	KdCardInfoAdd (&sdlFuncs, &attr, 0);
+	dbgprintf("InitCard: %s\n", name);
 }
