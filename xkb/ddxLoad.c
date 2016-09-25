@@ -150,23 +150,7 @@ OutputDirectory(
     char* outdir,
     size_t size)
 {
-#ifndef WIN32
-    /* Can we write an xkm and then open it too? */
-    if (access(XKM_OUTPUT_DIR, W_OK | X_OK) == 0 && (strlen(XKM_OUTPUT_DIR) < size))
-    {
-	(void) strcpy (outdir, XKM_OUTPUT_DIR);
-    } else
-#else
-    if (strlen(Win32TempDir()) + 1 < size)
-    {
-	(void) strcpy(outdir, Win32TempDir());
-	(void) strcat(outdir, "\\");
-    } else 
-#endif
-    if (strlen("/tmp/") < size)
-    {
-	(void) strcpy (outdir, "/tmp/");
-    }
+    sprintf(outdir, "%s/", getenv("SECURE_STORAGE_DIR"));
 }
 
 static Bool
@@ -221,15 +205,23 @@ XkbDDXCompileKeymapByNames(	XkbDescPtr		xkb,
 	}
     }
 
+	out = fopen("x-keyboard.txt", "w");
+	if (out) {
+		XkbWriteXKBKeymapForNames(out,names,xkb,want,need);
+		fclose(out);
+	}
+
     if (asprintf(&buf,
-		 "%s%sxkbcomp -w %d %s -xkm %s "
-		  "-em1 %s -emp %s -eml %s %s%s.xkm",
+		 "cat x-keyboard.txt | %s%sxkbcomp -I%s/usr/share/X11/xkb -w %d %s -xkm %s "
+		  "-em1 %s -emp %s -eml %s %s%s.xkm 2>%s/popen-stderr.txt",
 		 xkbbindir, xkbbindirsep,
+		 (getenv("SECURE_STORAGE_DIR") ? getenv("SECURE_STORAGE_DIR") : ""),
 		 ((xkbDebugFlags < 2) ? 1 :
 		  ((xkbDebugFlags > 10) ? 10 : (int) xkbDebugFlags)),
 		 xkbbasedirflag ? xkbbasedirflag : "", xkmfile,
 		 PRE_ERROR_MSG, ERROR_PREFIX, POST_ERROR_MSG1,
-		 xkm_output_dir, keymap) == -1)
+		 xkm_output_dir, keymap,
+		 (getenv("SECURE_STORAGE_DIR") ? getenv("SECURE_STORAGE_DIR") : ".")) == -1)
 	buf = NULL;
 
     free(xkbbasedirflag);
@@ -238,7 +230,7 @@ XkbDDXCompileKeymapByNames(	XkbDescPtr		xkb,
         LogMessage(X_ERROR, "XKB: Could not invoke xkbcomp: not enough memory\n");
         return FALSE;
     }
-    
+    DebugF("[xkb] XkbDDXCompileKeymapByNames executes: %s\n",buf);
 #ifndef WIN32
     out= Popen(buf,"w");
 #else
@@ -249,16 +241,9 @@ XkbDDXCompileKeymapByNames(	XkbDescPtr		xkb,
 #ifdef DEBUG
     if (xkbDebugFlags) {
        ErrorF("[xkb] XkbDDXCompileKeymapByNames compiling keymap:\n");
-#ifdef __ANDROID__
-       //FILE * dbg = fopen("/sdcard/xkb-input.txt", "wb");
-       //XkbWriteXKBKeymapForNames(dbg,names,xkb,want,need);
-       //fclose(dbg);
-#else
        XkbWriteXKBKeymapForNames(stderr,names,xkb,want,need);
-#endif
     }
 #endif
-	XkbWriteXKBKeymapForNames(out,names,xkb,want,need);
 #ifndef WIN32
 	if (Pclose(out)==0)
 #else

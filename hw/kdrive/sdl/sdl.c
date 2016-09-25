@@ -29,12 +29,15 @@
 #endif
 #include "kdrive.h"
 #include <SDL/SDL.h>
+#include <SDL/SDL_syswm.h>
 #include <X11/keysym.h>
 #include <sys/wait.h>
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <sys/un.h>
 #include <pthread.h>
+#include <sys/inotify.h>
+#include <fcntl.h>
 
 #ifdef __ANDROID__
 #include <SDL/SDL_screenkeyboard.h>
@@ -64,6 +67,11 @@ static void sdlMouseDisable (KdPointerInfo *pi);
 static int execute_command(const char * command, const char *mode, char * data, int datalen);
 static int UnicodeToUtf8(int src, char * dest);
 static void send_unicode(int unicode);
+static void set_clipboard_text(const char *text);
+static Bool sdlScreenButtons = FALSE;
+static void setScreenButtons(int mouseX);
+static enum sdlKeyboardType_t { KB_NATIVE = 0, KB_BUILTIN = 1, KB_BOTH = 2 };
+enum sdlKeyboardType_t sdlKeyboardType = KB_NATIVE;
 
 KdKeyboardInfo *sdlKeyboard = NULL;
 KdPointerInfo *sdlPointer = NULL;
@@ -204,6 +212,17 @@ static Bool sdlScreenInit(KdScreenInfo *screen)
 	SDL_WM_SetCaption("Freedesktop.org X server (SDL)", NULL);
 
 	SDL_EnableUNICODE(1);
+	SDL_EventState(SDL_SYSWMEVENT, SDL_ENABLE);
+	set_clipboard_text(SDL_GetClipboardText());
+
+	sdlScreenButtons = SDL_ANDROID_GetScreenKeyboardButtonShown(SDL_ANDROID_SCREENKEYBOARD_BUTTON_0);
+	setScreenButtons(10000);
+
+	if (getenv("XSDL_BUILTIN_KEYBOARD") != NULL)
+		sdlKeyboardType = (enum sdlKeyboardType_t) atoi(getenv("XSDL_BUILTIN_KEYBOARD"));
+	unsetenv("XSDL_BUILTIN_KEYBOARD");
+
+	printf("sdlScreenButtons %d sdlKeyboardType %d\n", sdlScreenButtons, sdlKeyboardType);
 
 	return sdlMapFramebuffer (screen);
 }
@@ -346,6 +365,42 @@ static Bool sdlRandRGetInfo (ScreenPtr pScreen, Rotation *rotations)
 							screen->height,
 							screen->width_mm,
 							screen->height_mm);
+
+	struct { int width, height; } sizes[] =
+		{
+		{ 1920, 1200 },
+		{ 1920, 1080 },
+		{ 1600, 1200 },
+		{ 1400, 1050 },
+		{ 1280, 1024 },
+		{ 1280, 960  },
+		{ 1280, 800  },
+		{ 1280, 720  },
+		{ 1152, 864 },
+		{ 1024, 768 },
+		{ 832, 624 },
+		{ 800, 600 },
+		{ 800, 480 },
+		{ 720, 400 },
+		{ 640, 480 },
+		{ 640, 400 },
+		{ 320, 240 },
+		{ 320, 200 },
+		{ 160, 160 },
+		{ 0, 0 }
+	};
+
+	n = 0;
+	while (sizes[n].width != 0 && sizes[n].height != 0)
+	{
+		RRRegisterSize (pScreen,
+				sizes[n].width,
+				sizes[n].height, 
+				(sizes[n].width * screen->width_mm)/screen->width,
+				(sizes[n].height *screen->height_mm)/screen->height
+				);
+		n++;
+	}
 
 	randr = KdSubRotation (driver->randr, screen->randr);
 
@@ -578,6 +633,7 @@ static void sdlPollInput(void)
 			case SDL_MOUSEMOTION:
 				//printf("SDL_MOUSEMOTION pressure %d\n", pressure);
 				KdEnqueuePointerEvent(sdlPointer, mouseState, event.motion.x, event.motion.y, pressure);
+				setScreenButtons(event.motion.x);
 				break;
 			case SDL_MOUSEBUTTONDOWN:
 				switch(event.button.button)
@@ -653,7 +709,32 @@ static void sdlPollInput(void)
 				if (event.key.keysym.sym == SDLK_HELP)
 				{
 					if(event.type == SDL_KEYUP)
-						SDL_ANDROID_ToggleScreenKeyboardWithoutTextInput();
+					{
+						// SDL_ANDROID_ToggleScreenKeyboardWithoutTextInput();
+						static int keyboard = 0;
+						keyboard++;
+						if (keyboard > 1 || (sdlKeyboardType != KB_BOTH && keyboard > 0))
+							keyboard = 0;
+						SDL_HideScreenKeyboard(NULL);
+						//SDL_Delay(150);
+						SDL_Flip(SDL_GetVideoSurface());
+						if (keyboard == 0)
+						{
+							SDL_Delay(100);
+							if (sdlKeyboardType == KB_NATIVE || sdlKeyboardType == KB_BOTH)
+								SDL_ANDROID_ToggleScreenKeyboardWithoutTextInput();
+							if (sdlKeyboardType == KB_BUILTIN)
+								SDL_ANDROID_ToggleInternalScreenKeyboard(SDL_KEYBOARD_QWERTY);
+							SDL_Flip(SDL_GetVideoSurface());
+						}
+						if (keyboard == 1 && sdlKeyboardType == KB_BOTH)
+						{
+							SDL_Delay(100);
+							SDL_ANDROID_ToggleInternalScreenKeyboard(SDL_KEYBOARD_QWERTY);
+							SDL_Flip(SDL_GetVideoSurface());
+						}
+					}
+					setScreenButtons(10000);
 				}
 				else
 #endif
@@ -694,6 +775,10 @@ static void sdlPollInput(void)
 				// Oherwise SDL will stuck and we will get a permanent black screen
 				SDL_Flip(SDL_GetVideoSurface());
 				break;
+			case SDL_SYSWMEVENT:
+				if (event.syswm.msg != NULL && event.syswm.msg->type == SDL_SYSWM_ANDROID_CLIPBOARD_CHANGED)
+					set_clipboard_text(SDL_GetClipboardText());
+				break;
 			//case SDL_QUIT:
 				/* this should never happen */
 				//SDL_Quit(); // SDL_Quit() on Android is buggy
@@ -721,6 +806,7 @@ static void xsdlAudioCallback(void *userdata, Uint8 *stream, int len)
 		int count = read(fd, stream, len);
 		if (count <= 0)
 		{
+			printf("Audio pipe closed, notifying main thread");
 			xsdlConnectionClosed = 1;
 			return;
 		}
@@ -729,19 +815,108 @@ static void xsdlAudioCallback(void *userdata, Uint8 *stream, int len)
 	}
 }
 
+static void initPulseAudioConfig()
+{
+	char cmd[PATH_MAX * 4];
+	sprintf(cmd, "%s/busybox sed -i s@/data/local/tmp@%s/pulse@g %s/pulse/pulseaudio.conf", getenv("SECURE_STORAGE_DIR"), getenv("SECURE_STORAGE_DIR"), getenv("SECURE_STORAGE_DIR"));
+	printf("Fixing up PulseAudio config file");
+	printf("%s", cmd);
+	system(cmd);
+	sprintf(cmd, "rm %s/pulse/audio-out", getenv("SECURE_STORAGE_DIR"));
+	printf("%s", cmd);
+	system(cmd);
+}
+
+static void executeBackground(const char *cmd)
+{
+	pid_t childpid;
+
+	childpid = fork();
+
+	if (childpid == 0)
+	{
+		/*
+		int fd;
+		setsid();
+		// Close all open file descriptors
+		//for (fd = getdtablesize(); fd >= 0; --fd)
+		//	close(fd);
+		close(0);
+		close(1);
+		close(2);
+		fd = open("/dev/null", O_RDWR);
+		dup2(0, fd);
+		dup2(1, fd);
+		dup2(2, fd);
+		*/
+		execlp("logwrapper", "logwrapper", "sh", "-c", cmd, NULL);
+		printf("Error: cannot launch command: %s\n", strerror(errno));
+		exit(0);
+	}
+}
+
+static void launchPulseAudio()
+{
+	char cmd[PATH_MAX * 6];
+	sprintf(cmd,
+		"cd %s/pulse ; while true ; do "
+		"rm -f audio-out ; "
+		"HOME=%s/pulse "
+		"TMPDIR=%s/pulse "
+		"LD_LIBRARY_PATH=%s/pulse "
+		"./pulseaudio --disable-shm -n -F pulseaudio.conf "
+		"--dl-search-path=%s/pulse "
+		"--daemonize=false --use-pid-file=false "
+		"--log-target=stderr --log-level=notice 2>&1 ; "
+		"sleep 1 ; "
+		"done",
+		getenv("SECURE_STORAGE_DIR"), getenv("SECURE_STORAGE_DIR"), getenv("SECURE_STORAGE_DIR"), getenv("SECURE_STORAGE_DIR"), getenv("SECURE_STORAGE_DIR"));
+	printf("Launching PulseAudio daemon:");
+	printf("%s", cmd);
+	executeBackground(cmd);
+	printf("Launching PulseAudio daemon done");
+	//system(cmd);
+}
+
 static void *xsdlAudioThread(void *data)
 {
 	char infile[PATH_MAX];
-	strcpy(infile, getenv("SECURE_STORAGE_DIR"));
-	strcat(infile, "/img/tmp/audio-out");
+	int fd, notify;
+	struct inotify_event notifyEvents[8];
 
-	int fd;
+	strcpy(infile, getenv("SECURE_STORAGE_DIR"));
+	strcat(infile, "/pulse/pulseaudio");
+
+	if (access(infile, X_OK) < 0)
+	{
+		printf("PulseAudio not installed, disabling audio");
+		return NULL;
+	}
+
+	strcpy(infile, getenv("SECURE_STORAGE_DIR"));
+	strcat(infile, "/pulse");
+
+	printf("Registering inotify listener on %s", infile);
+	notify = inotify_init();
+	if (inotify_add_watch(notify, infile, IN_CREATE | IN_DELETE) < 0)
+	{
+		printf("Cannot set inotify event on dir %s, disabling audio: %s\n", infile, strerror(errno));
+		close(notify);
+		return NULL;
+	}
+
+	initPulseAudioConfig();
+	launchPulseAudio();
+
+	strcpy(infile, getenv("SECURE_STORAGE_DIR"));
+	strcat(infile, "/pulse/audio-out");
+
 	while (1)
 	{
-		//printf("Trying to open audio pipe %s\n", infile);
+		printf("Trying to open audio pipe %s\n", infile);
 		if ((fd = open(infile, O_RDONLY)) > -1)
 		{
-			printf("Reading audio data from pipe %s\n", infile);
+			printf("Reading audio data from pipe %s", infile);
 			xsdlConnectionClosed = 0;
 			SDL_AudioSpec spec, obtained;
 			memset(&spec, 0, sizeof(spec));
@@ -754,14 +929,21 @@ static void *xsdlAudioThread(void *data)
 			SDL_OpenAudio(&spec, &obtained);
 			SDL_PauseAudio(0);
 			while (!xsdlConnectionClosed)
-				SDL_Delay(1000);
+			{
+				printf("Waiting for audio pipe to close");
+				read(notify, notifyEvents, sizeof(notifyEvents));
+			}
 			SDL_CloseAudio();
 			close(fd);
-			printf("Audio pipe closed: %s\n", infile);
-		} else {
-			SDL_Delay(1000);
+			printf("Audio pipe closed: %s", infile);
+		}
+		else
+		{
+			printf("Waiting for audio pipe to open");
+			read(notify, notifyEvents, sizeof(notifyEvents));
 		}
 	}
+	close(notify);
 	return NULL;
 }
 
@@ -812,18 +994,25 @@ static void *send_unicode_thread(void *param)
 	sprintf (cmd, "127.0.0.1:%s", display);
 	setenv ("DISPLAY", cmd, 1);
 	UnicodeToUtf8 (unicode, c);
-	//sprintf(cmd, "echo '%s' | %s/usr/bin/xsel -b -i >/dev/null 2>&1", c, getenv("APPDIR"));
-	//sprintf(cmd, "echo '%s' >/dev/null 2>&1", c);
-	//sprintf(cmd, "%s/usr/bin/xsel -b", getenv("APPDIR"));
-	//printf("Launching cmd: %s", cmd);
-	//int ret = system(cmd);
-	//printf("Cmd ret: %d", ret);
 	sprintf(cmd, "%s/usr/bin/xsel -b -i >/dev/null 2>&1", getenv("APPDIR"));
 	execute_command(cmd, "w", c, 5);
 	KdEnqueueKeyboardEvent (sdlKeyboard, 37, 0); // LCTRL
 	KdEnqueueKeyboardEvent (sdlKeyboard, 55, 0); // V
 	KdEnqueueKeyboardEvent (sdlKeyboard, 55, 1); // V
 	KdEnqueueKeyboardEvent (sdlKeyboard, 37, 1); // LCTRL
+	return NULL;
+}
+
+static void *set_clipboard_text_thread(void *param)
+{
+	// International text input - copy symbol to clipboard, and send copypaste key
+	const char *text = (const char *)param;
+	char cmd[1024] = "";
+	sprintf (cmd, "127.0.0.1:%s", display);
+	setenv ("DISPLAY", cmd, 1);
+	sprintf(cmd, "%s/usr/bin/xsel -b -i >/dev/null 2>&1", getenv("APPDIR"));
+	execute_command(cmd, "w", text, strlen(text));
+	SDL_free(text);
 	return NULL;
 }
 
@@ -834,6 +1023,16 @@ void send_unicode(int unicode)
 	pthread_attr_init (&attr);
 	pthread_attr_setdetachstate (&attr, PTHREAD_CREATE_DETACHED);
 	pthread_create (&thread_id, &attr, &send_unicode_thread, (void *)unicode);
+	pthread_attr_destroy (&attr);
+}
+
+void set_clipboard_text(const char *text)
+{
+	pthread_t thread_id;
+	pthread_attr_t attr;
+	pthread_attr_init (&attr);
+	pthread_attr_setdetachstate (&attr, PTHREAD_CREATE_DETACHED);
+	pthread_create (&thread_id, &attr, &set_clipboard_text_thread, (void *)text);
 	pthread_attr_destroy (&attr);
 }
 
@@ -895,4 +1094,68 @@ int UnicodeToUtf8(int src, char * dest)
     }
     *dest = 0;
     return len;
+}
+
+void setScreenButtons(int mouseX)
+{
+#ifdef __ANDROID__
+	//printf ("setScreenButtons: kbShown %d sdlScreenButtons %d alignLeft %d", SDL_IsScreenKeyboardShown(NULL), sdlScreenButtons, mouseX > (((unsigned)SDL_GetVideoSurface()->w) >> 3));
+
+	if ( SDL_ANDROID_GetScreenKeyboardRedefinedByUser() )
+		return;
+
+	int kbShown = SDL_IsScreenKeyboardShown(NULL);
+	if (!sdlScreenButtons)
+	{
+		if (SDL_ANDROID_GetScreenKeyboardButtonShown(SDL_ANDROID_SCREENKEYBOARD_BUTTON_0))
+		{
+			SDL_ANDROID_SetScreenKeyboardButtonShown(SDL_ANDROID_SCREENKEYBOARD_BUTTON_0, 0);
+			SDL_ANDROID_SetScreenKeyboardButtonShown(SDL_ANDROID_SCREENKEYBOARD_BUTTON_1, 0);
+			SDL_ANDROID_SetScreenKeyboardButtonShown(SDL_ANDROID_SCREENKEYBOARD_BUTTON_2, 0);
+		}
+		return;
+	}
+
+	SDL_Rect pos;
+	SDL_ANDROID_GetScreenKeyboardButtonPos(SDL_ANDROID_SCREENKEYBOARD_BUTTON_0, &pos);
+
+	//printf ("setScreenButtons: pos %d %d shown %d", pos.x, pos.y, SDL_ANDROID_GetScreenKeyboardButtonShown(SDL_ANDROID_SCREENKEYBOARD_BUTTON_0));
+
+	int alignLeft;
+	alignLeft = mouseX > (((unsigned)SDL_GetVideoSurface()->w) >> 3);
+
+	if (!kbShown && pos.y > 0 && (pos.x == 0) == alignLeft)
+		return;
+
+	if (kbShown && pos.y == 0 && (pos.x == 0) == alignLeft && SDL_ANDROID_GetScreenKeyboardButtonShown(SDL_ANDROID_SCREENKEYBOARD_BUTTON_0))
+		return;
+
+	int resolutionW;
+	resolutionW = atoi(getenv("DISPLAY_RESOLUTION_WIDTH"));
+	if (resolutionW <= 0)
+		resolutionW = SDL_ListModes(NULL, 0)[0]->w;
+
+	pos.w = (kbShown ? 60 : 40) * SDL_ListModes(NULL, 0)[0]->w / resolutionW;
+	pos.h = SDL_ListModes(NULL, 0)[0]->h / 20;
+	pos.x = alignLeft ? 0 : SDL_ListModes(NULL, 0)[0]->w - pos.w;
+	pos.y = kbShown ? 0 : SDL_ListModes(NULL, 0)[0]->h - pos.h * 3;
+
+	SDL_ANDROID_SetScreenKeyboardButtonShown(SDL_ANDROID_SCREENKEYBOARD_BUTTON_0, 1);
+	SDL_ANDROID_SetScreenKeyboardButtonPos(SDL_ANDROID_SCREENKEYBOARD_BUTTON_0, &pos);
+	SDL_ANDROID_SetScreenKeyboardButtonImagePos(SDL_ANDROID_SCREENKEYBOARD_BUTTON_0, &pos);
+	SDL_ANDROID_SetScreenKeyboardButtonStayPressedAfterTouch(SDL_ANDROID_SCREENKEYBOARD_BUTTON_0, 1);
+	pos.y += pos.h;
+	SDL_ANDROID_SetScreenKeyboardButtonShown(SDL_ANDROID_SCREENKEYBOARD_BUTTON_1, 1);
+	SDL_ANDROID_SetScreenKeyboardButtonPos(SDL_ANDROID_SCREENKEYBOARD_BUTTON_1, &pos);
+	SDL_ANDROID_SetScreenKeyboardButtonImagePos(SDL_ANDROID_SCREENKEYBOARD_BUTTON_1, &pos);
+	SDL_ANDROID_SetScreenKeyboardButtonStayPressedAfterTouch(SDL_ANDROID_SCREENKEYBOARD_BUTTON_1, 1);
+	pos.y += pos.h;
+	SDL_ANDROID_SetScreenKeyboardButtonShown(SDL_ANDROID_SCREENKEYBOARD_BUTTON_2, 1);
+	SDL_ANDROID_SetScreenKeyboardButtonPos(SDL_ANDROID_SCREENKEYBOARD_BUTTON_2, &pos);
+	SDL_ANDROID_SetScreenKeyboardButtonImagePos(SDL_ANDROID_SCREENKEYBOARD_BUTTON_2, &pos);
+	SDL_ANDROID_SetScreenKeyboardButtonStayPressedAfterTouch(SDL_ANDROID_SCREENKEYBOARD_BUTTON_2, 1);
+
+	SDL_ANDROID_SetScreenKeyboardTransparency(255); // opaque
+
+#endif
 }

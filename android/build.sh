@@ -46,8 +46,13 @@ cd $BUILDDIR
 # =========== xsproto ===========
 
 [ -e X11/Xfuncproto.h ] || {
-curl http://cgit.freedesktop.org/xorg/proto/x11proto/snapshot/xproto-7.0.24.tar.gz | tar xvz || exit 1
-ln -sf xproto-7.0.24 X11
+PKGURL=https://cgit.freedesktop.org/xorg/proto/x11proto/snapshot/xproto-7.0.24.tar.gz
+PKGDIR=`basename --suffix=.tar.gz $PKGURL`
+echo $PKGDIR: $PKGURL
+[ -e ../$PKGDIR.tar.gz ] || curl $PKGURL -o ../$PKGDIR.tar.gz || rm ../$PKGDIR.tar.gz
+tar xvzf ../$PKGDIR.tar.gz || exit 1
+
+ln -sf $PKGDIR X11
 cd X11
 patch -p0 < ../../xproto.diff || exit 1
 $BUILDDIR/setCrossEnvironment.sh \
@@ -59,8 +64,13 @@ cd $BUILDDIR
 # =========== fontsproto ===========
 
 [ -e X11/fonts/fontstruct.h ] || {
-curl http://cgit.freedesktop.org/xorg/proto/fontsproto/snapshot/fontsproto-2.1.2.tar.gz | tar xvz || exit 1
-ln -sf ../fontsproto-2.1.2 X11/fonts
+PKGURL=https://cgit.freedesktop.org/xorg/proto/fontsproto/snapshot/fontsproto-2.1.2.tar.gz
+PKGDIR=`basename --suffix=.tar.gz $PKGURL`
+echo $PKGDIR: $PKGURL
+[ -e ../$PKGDIR.tar.gz ] || curl $PKGURL -o ../$PKGDIR.tar.gz || rm ../$PKGDIR.tar.gz
+tar xvzf ../$PKGDIR.tar.gz || exit 1
+
+ln -sf ../$PKGDIR X11/fonts
 cd X11/fonts
 $BUILDDIR/setCrossEnvironment.sh \
 ./autogen.sh --host=$TARGET_HOST \
@@ -71,29 +81,39 @@ cd $BUILDDIR
 # =========== xtrans ===========
 
 [ -e xtrans-1.2.7 ] || {
-[ -e xtrans-1.2.7 ] || curl http://cgit.freedesktop.org/xorg/lib/libxtrans/snapshot/xtrans-1.2.7.tar.gz | tar xvz || exit 1
+PKGURL=https://cgit.freedesktop.org/xorg/lib/libxtrans/snapshot/xtrans-1.2.7.tar.gz
+PKGDIR=`basename --suffix=.tar.gz $PKGURL`
+echo $PKGDIR: $PKGURL
+[ -e ../$PKGDIR.tar.gz ] || curl $PKGURL -o ../$PKGDIR.tar.gz || rm ../$PKGDIR.tar.gz
+tar xvzf ../$PKGDIR.tar.gz || exit 1
+cd $PKGDIR
 
-cd xtrans-1.2.7
+patch -p0 < ../../Xtrans.c.diff || exit 1
 
 [ -e configure ] || \
 autoreconf -v --install \
 || exit 1
 
-env CFLAGS="-isystem$BUILDDIR -include strings.h" \
+env CFLAGS="-isystem$BUILDDIR -include strings.h -DSO_REUSEADDR=1" \
 $BUILDDIR/setCrossEnvironment.sh \
 ./configure \
 --host=$TARGET_HOST \
 || exit 1
 
 cd $BUILDDIR
-ln -sf ../xtrans-1.2.7 X11/Xtrans
+ln -sf ../$PKGDIR X11/Xtrans
 } || exit 1
 
 # =========== xextproto ===========
 
 [ -e X11/extensions/geproto.h ] || {
-curl http://cgit.freedesktop.org/xorg/proto/xextproto/snapshot/xextproto-7.2.1.tar.gz | tar xvz || exit 1
-ln -sf ../xextproto-7.2.1 X11/extensions
+PKGURL=https://cgit.freedesktop.org/xorg/proto/xextproto/snapshot/xextproto-7.2.1.tar.gz
+PKGDIR=`basename --suffix=.tar.gz $PKGURL`
+echo $PKGDIR: $PKGURL
+[ -e ../$PKGDIR.tar.gz ] || curl $PKGURL -o ../$PKGDIR.tar.gz || rm ../$PKGDIR.tar.gz
+tar xvzf ../$PKGDIR.tar.gz || exit 1
+
+ln -sf ../$PKGDIR X11/extensions
 cd X11/extensions
 $BUILDDIR/setCrossEnvironment.sh \
 ./autogen.sh --host=$TARGET_HOST \
@@ -104,13 +124,18 @@ cd $BUILDDIR
 # =========== inputproto ===========
 
 [ -e X11/extensions/XI.h ] || {
-curl http://cgit.freedesktop.org/xorg/proto/inputproto/snapshot/inputproto-2.3.tar.gz | tar xvz || exit 1
-cd inputproto-2.3
+PKGURL=https://cgit.freedesktop.org/xorg/proto/inputproto/snapshot/inputproto-2.3.tar.gz
+PKGDIR=`basename --suffix=.tar.gz $PKGURL`
+echo $PKGDIR: $PKGURL
+[ -e ../$PKGDIR.tar.gz ] || curl $PKGURL -o ../$PKGDIR.tar.gz || rm ../$PKGDIR.tar.gz
+tar xvzf ../$PKGDIR.tar.gz || exit 1
+cd $PKGDIR
+
 $BUILDDIR/setCrossEnvironment.sh \
 ./autogen.sh --host=$TARGET_HOST \
 || exit 1
 cd $BUILDDIR
-for F in inputproto-2.3/*.h ; do
+for F in $PKGDIR/*.h ; do
 ln -sf ../$F X11/extensions/
 done
 } || exit 1
@@ -118,13 +143,18 @@ done
 # =========== kbproto ===========
 
 [ -e X11/extensions/XKBproto.h ] || {
-curl http://cgit.freedesktop.org/xorg/proto/kbproto/snapshot/kbproto-1.0.6.tar.gz | tar xvz || exit 1
-cd kbproto-1.0.6
+PKGURL=https://cgit.freedesktop.org/xorg/proto/kbproto/snapshot/kbproto-1.0.6.tar.gz
+PKGDIR=`basename --suffix=.tar.gz $PKGURL`
+echo $PKGDIR: $PKGURL
+[ -e ../$PKGDIR.tar.gz ] || curl $PKGURL -o ../$PKGDIR.tar.gz || rm ../$PKGDIR.tar.gz
+tar xvzf ../$PKGDIR.tar.gz || exit 1
+cd $PKGDIR
+
 $BUILDDIR/setCrossEnvironment.sh \
 ./autogen.sh --host=$TARGET_HOST \
 || exit 1
 cd $BUILDDIR
-for F in kbproto-1.0.6/*.h ; do
+for F in $PKGDIR/*.h ; do
 ln -sf ../$F X11/extensions/
 done
 } || exit 1
@@ -132,13 +162,18 @@ done
 # =========== xineramaproto ===========
 
 [ -e X11/extensions/panoramiXproto.h ] || {
-curl http://cgit.freedesktop.org/xorg/proto/xineramaproto/snapshot/xineramaproto-1.2.1.tar.gz | tar xvz || exit 1
-cd xineramaproto-1.2.1
+PKGURL=https://cgit.freedesktop.org/xorg/proto/xineramaproto/snapshot/xineramaproto-1.2.1.tar.gz
+PKGDIR=`basename --suffix=.tar.gz $PKGURL`
+echo $PKGDIR: $PKGURL
+[ -e ../$PKGDIR.tar.gz ] || curl $PKGURL -o ../$PKGDIR.tar.gz || rm ../$PKGDIR.tar.gz
+tar xvzf ../$PKGDIR.tar.gz || exit 1
+cd $PKGDIR
+
 $BUILDDIR/setCrossEnvironment.sh \
 ./autogen.sh --host=$TARGET_HOST \
 || exit 1
 cd $BUILDDIR
-for F in xineramaproto-1.2.1/*.h ; do
+for F in $PKGDIR/*.h ; do
 ln -sf ../$F X11/extensions/
 done
 } || exit 1
@@ -146,13 +181,18 @@ done
 # =========== renderproto ===========
 
 [ -e X11/extensions/renderproto.h ] || {
-curl http://cgit.freedesktop.org/xorg/proto/renderproto/snapshot/renderproto-0.11.1.tar.gz | tar xvz || exit 1
-cd renderproto-0.11.1
+PKGURL=https://cgit.freedesktop.org/xorg/proto/renderproto/snapshot/renderproto-0.11.1.tar.gz
+PKGDIR=`basename --suffix=.tar.gz $PKGURL`
+echo $PKGDIR: $PKGURL
+[ -e ../$PKGDIR.tar.gz ] || curl $PKGURL -o ../$PKGDIR.tar.gz || rm ../$PKGDIR.tar.gz
+tar xvzf ../$PKGDIR.tar.gz || exit 1
+cd $PKGDIR
+
 $BUILDDIR/setCrossEnvironment.sh \
 ./autogen.sh --host=$TARGET_HOST \
 || exit 1
 cd $BUILDDIR
-for F in renderproto-0.11.1/*.h ; do
+for F in $PKGDIR/*.h ; do
 ln -sf ../$F X11/extensions/
 done
 } || exit 1
@@ -160,13 +200,18 @@ done
 # =========== xfixesproto ===========
 
 [ -e X11/extensions/xfixesproto.h ] || {
-curl http://cgit.freedesktop.org/xorg/proto/fixesproto/snapshot/fixesproto-5.0.tar.gz | tar xvz || exit 1
-cd fixesproto-5.0
+PKGURL=https://cgit.freedesktop.org/xorg/proto/fixesproto/snapshot/fixesproto-5.0.tar.gz
+PKGDIR=`basename --suffix=.tar.gz $PKGURL`
+echo $PKGDIR: $PKGURL
+[ -e ../$PKGDIR.tar.gz ] || curl $PKGURL -o ../$PKGDIR.tar.gz || rm ../$PKGDIR.tar.gz
+tar xvzf ../$PKGDIR.tar.gz || exit 1
+cd $PKGDIR
+
 $BUILDDIR/setCrossEnvironment.sh \
 ./autogen.sh --host=$TARGET_HOST \
 || exit 1
 cd $BUILDDIR
-for F in fixesproto-5.0/*.h ; do
+for F in $PKGDIR/*.h ; do
 ln -sf ../$F X11/extensions/
 done
 } || exit 1
@@ -174,13 +219,18 @@ done
 # =========== damageproto ===========
 
 [ -e X11/extensions/damageproto.h ] || {
-curl http://cgit.freedesktop.org/xorg/proto/damageproto/snapshot/damageproto-1.2.1.tar.gz | tar xvz || exit 1
-cd damageproto-1.2.1
+PKGURL=https://cgit.freedesktop.org/xorg/proto/damageproto/snapshot/damageproto-1.2.1.tar.gz
+PKGDIR=`basename --suffix=.tar.gz $PKGURL`
+echo $PKGDIR: $PKGURL
+[ -e ../$PKGDIR.tar.gz ] || curl $PKGURL -o ../$PKGDIR.tar.gz || rm ../$PKGDIR.tar.gz
+tar xvzf ../$PKGDIR.tar.gz || exit 1
+cd $PKGDIR
+
 $BUILDDIR/setCrossEnvironment.sh \
 ./autogen.sh --host=$TARGET_HOST \
 || exit 1
 cd $BUILDDIR
-for F in damageproto-1.2.1/*.h ; do
+for F in $PKGDIR/*.h ; do
 ln -sf ../$F X11/extensions/
 done
 } || exit 1
@@ -188,13 +238,18 @@ done
 # =========== compositeproto ===========
 
 [ -e X11/extensions/compositeproto.h ] || {
-curl http://cgit.freedesktop.org/xorg/proto/compositeproto/snapshot/compositeproto-0.4.2.tar.gz | tar xvz || exit 1
-cd compositeproto-0.4.2
+PKGURL=https://cgit.freedesktop.org/xorg/proto/compositeproto/snapshot/compositeproto-0.4.2.tar.gz
+PKGDIR=`basename --suffix=.tar.gz $PKGURL`
+echo $PKGDIR: $PKGURL
+[ -e ../$PKGDIR.tar.gz ] || curl $PKGURL -o ../$PKGDIR.tar.gz || rm ../$PKGDIR.tar.gz
+tar xvzf ../$PKGDIR.tar.gz || exit 1
+cd $PKGDIR
+
 $BUILDDIR/setCrossEnvironment.sh \
 ./autogen.sh --host=$TARGET_HOST \
 || exit 1
 cd $BUILDDIR
-for F in compositeproto-0.4.2/*.h ; do
+for F in $PKGDIR/*.h ; do
 ln -sf ../$F X11/extensions/
 done
 } || exit 1
@@ -202,13 +257,18 @@ done
 # =========== bigreqsproto ===========
 
 [ -e X11/extensions/bigreqsproto.h ] || {
-curl http://cgit.freedesktop.org/xorg/proto/bigreqsproto/snapshot/bigreqsproto-1.1.2.tar.gz | tar xvz || exit 1
-cd bigreqsproto-1.1.2
+PKGURL=https://cgit.freedesktop.org/xorg/proto/bigreqsproto/snapshot/bigreqsproto-1.1.2.tar.gz
+PKGDIR=`basename --suffix=.tar.gz $PKGURL`
+echo $PKGDIR: $PKGURL
+[ -e ../$PKGDIR.tar.gz ] || curl $PKGURL -o ../$PKGDIR.tar.gz || rm ../$PKGDIR.tar.gz
+tar xvzf ../$PKGDIR.tar.gz || exit 1
+cd $PKGDIR
+
 $BUILDDIR/setCrossEnvironment.sh \
 ./autogen.sh --host=$TARGET_HOST \
 || exit 1
 cd $BUILDDIR
-for F in bigreqsproto-1.1.2/*.h ; do
+for F in $PKGDIR/*.h ; do
 ln -sf ../$F X11/extensions/
 done
 } || exit 1
@@ -216,13 +276,18 @@ done
 # =========== scrnsaverproto ===========
 
 [ -e X11/extensions/saver.h ] || {
-curl http://cgit.freedesktop.org/xorg/proto/scrnsaverproto/snapshot/scrnsaverproto-1.2.2.tar.gz | tar xvz || exit 1
-cd scrnsaverproto-1.2.2
+PKGURL=https://cgit.freedesktop.org/xorg/proto/scrnsaverproto/snapshot/scrnsaverproto-1.2.2.tar.gz
+PKGDIR=`basename --suffix=.tar.gz $PKGURL`
+echo $PKGDIR: $PKGURL
+[ -e ../$PKGDIR.tar.gz ] || curl $PKGURL -o ../$PKGDIR.tar.gz || rm ../$PKGDIR.tar.gz
+tar xvzf ../$PKGDIR.tar.gz || exit 1
+cd $PKGDIR
+
 $BUILDDIR/setCrossEnvironment.sh \
 ./autogen.sh --host=$TARGET_HOST \
 || exit 1
 cd $BUILDDIR
-for F in scrnsaverproto-1.2.2/*.h ; do
+for F in $PKGDIR/*.h ; do
 ln -sf ../$F X11/extensions/
 done
 } || exit 1
@@ -230,13 +295,18 @@ done
 # =========== videoproto ===========
 
 [ -e X11/extensions/Xv.h ] || {
-curl http://cgit.freedesktop.org/xorg/proto/videoproto/snapshot/videoproto-2.3.2.tar.gz | tar xvz || exit 1
-cd videoproto-2.3.2
+PKGURL=https://cgit.freedesktop.org/xorg/proto/videoproto/snapshot/videoproto-2.3.2.tar.gz
+PKGDIR=`basename --suffix=.tar.gz $PKGURL`
+echo $PKGDIR: $PKGURL
+[ -e ../$PKGDIR.tar.gz ] || curl $PKGURL -o ../$PKGDIR.tar.gz || rm ../$PKGDIR.tar.gz
+tar xvzf ../$PKGDIR.tar.gz || exit 1
+cd $PKGDIR
+
 $BUILDDIR/setCrossEnvironment.sh \
 ./autogen.sh --host=$TARGET_HOST \
 || exit 1
 cd $BUILDDIR
-for F in videoproto-2.3.2/*.h ; do
+for F in $PKGDIR/*.h ; do
 ln -sf ../$F X11/extensions/
 done
 } || exit 1
@@ -244,13 +314,18 @@ done
 # =========== resourceproto ===========
 
 [ -e X11/extensions/XResproto.h ] || {
-curl http://cgit.freedesktop.org/xorg/proto/resourceproto/snapshot/resourceproto-1.2.0.tar.gz | tar xvz || exit 1
-cd resourceproto-1.2.0
+PKGURL=https://cgit.freedesktop.org/xorg/proto/resourceproto/snapshot/resourceproto-1.2.0.tar.gz
+PKGDIR=`basename --suffix=.tar.gz $PKGURL`
+echo $PKGDIR: $PKGURL
+[ -e ../$PKGDIR.tar.gz ] || curl $PKGURL -o ../$PKGDIR.tar.gz || rm ../$PKGDIR.tar.gz
+tar xvzf ../$PKGDIR.tar.gz || exit 1
+cd $PKGDIR
+
 $BUILDDIR/setCrossEnvironment.sh \
 ./autogen.sh --host=$TARGET_HOST \
 || exit 1
 cd $BUILDDIR
-for F in resourceproto-1.2.0/*.h ; do
+for F in $PKGDIR/*.h ; do
 ln -sf ../$F X11/extensions/
 done
 } || exit 1
@@ -258,13 +333,18 @@ done
 # =========== xcmiscproto ===========
 
 [ -e X11/extensions/xcmiscproto.h ] || {
-curl http://cgit.freedesktop.org/xorg/proto/xcmiscproto/snapshot/xcmiscproto-1.2.2.tar.gz | tar xvz || exit 1
-cd xcmiscproto-1.2.2
+PKGURL=https://cgit.freedesktop.org/xorg/proto/xcmiscproto/snapshot/xcmiscproto-1.2.2.tar.gz
+PKGDIR=`basename --suffix=.tar.gz $PKGURL`
+echo $PKGDIR: $PKGURL
+[ -e ../$PKGDIR.tar.gz ] || curl $PKGURL -o ../$PKGDIR.tar.gz || rm ../$PKGDIR.tar.gz
+tar xvzf ../$PKGDIR.tar.gz || exit 1
+cd $PKGDIR
+
 $BUILDDIR/setCrossEnvironment.sh \
 ./autogen.sh --host=$TARGET_HOST \
 || exit 1
 cd $BUILDDIR
-for F in xcmiscproto-1.2.2/*.h ; do
+for F in $PKGDIR/*.h ; do
 ln -sf ../$F X11/extensions/
 done
 } || exit 1
@@ -272,13 +352,18 @@ done
 # =========== randrproto ===========
 
 [ -e X11/extensions/randr.h ] || {
-curl http://cgit.freedesktop.org/xorg/proto/randrproto/snapshot/randrproto-1.4.0.tar.gz | tar xvz || exit 1
-cd randrproto-1.4.0
+PKGURL=https://cgit.freedesktop.org/xorg/proto/randrproto/snapshot/randrproto-1.4.0.tar.gz
+PKGDIR=`basename --suffix=.tar.gz $PKGURL`
+echo $PKGDIR: $PKGURL
+[ -e ../$PKGDIR.tar.gz ] || curl $PKGURL -o ../$PKGDIR.tar.gz || rm ../$PKGDIR.tar.gz
+tar xvzf ../$PKGDIR.tar.gz || exit 1
+cd $PKGDIR
+
 $BUILDDIR/setCrossEnvironment.sh \
 ./autogen.sh --host=$TARGET_HOST \
 || exit 1
 cd $BUILDDIR
-for F in randrproto-1.4.0/*.h ; do
+for F in $PKGDIR/*.h ; do
 ln -sf ../$F X11/extensions/
 done
 } || exit 1
@@ -286,13 +371,18 @@ done
 # =========== xf86bigfontproto ===========
 
 [ -e X11/extensions/xf86bigfproto.h ] || {
-curl http://cgit.freedesktop.org/xorg/proto/xf86bigfontproto/snapshot/xf86bigfontproto-1.2.0.tar.gz | tar xvz || exit 1
-cd xf86bigfontproto-1.2.0
+PKGURL=https://cgit.freedesktop.org/xorg/proto/xf86bigfontproto/snapshot/xf86bigfontproto-1.2.0.tar.gz
+PKGDIR=`basename --suffix=.tar.gz $PKGURL`
+echo $PKGDIR: $PKGURL
+[ -e ../$PKGDIR.tar.gz ] || curl $PKGURL -o ../$PKGDIR.tar.gz || rm ../$PKGDIR.tar.gz
+tar xvzf ../$PKGDIR.tar.gz || exit 1
+cd $PKGDIR
+
 $BUILDDIR/setCrossEnvironment.sh \
 ./autogen.sh --host=$TARGET_HOST \
 || exit 1
 cd $BUILDDIR
-for F in xf86bigfontproto-1.2.0/*.h ; do
+for F in $PKGDIR/*.h ; do
 ln -sf ../$F X11/extensions/
 done
 } || exit 1
@@ -300,29 +390,50 @@ done
 # =========== recordproto ===========
 
 [ -e X11/extensions/recordproto.h ] || {
-curl http://cgit.freedesktop.org/xorg/proto/recordproto/snapshot/recordproto-1.14.2.tar.gz | tar xvz || exit 1
-cd recordproto-1.14.2
+PKGURL=https://cgit.freedesktop.org/xorg/proto/recordproto/snapshot/recordproto-1.14.2.tar.gz
+PKGDIR=`basename --suffix=.tar.gz $PKGURL`
+echo $PKGDIR: $PKGURL
+[ -e ../$PKGDIR.tar.gz ] || curl $PKGURL -o ../$PKGDIR.tar.gz || rm ../$PKGDIR.tar.gz
+tar xvzf ../$PKGDIR.tar.gz || exit 1
+cd $PKGDIR
+
 $BUILDDIR/setCrossEnvironment.sh \
 ./autogen.sh --host=$TARGET_HOST \
 || exit 1
 cd $BUILDDIR
-for F in recordproto-1.14.2/*.h ; do
+for F in $PKGDIR/*.h ; do
 ln -sf ../$F X11/extensions/
 done
+} || exit 1
+
+# =========== libportable.a ===========
+[ -e libportable.a ] || {
+	rm -rf libportable
+	mkdir -p libportable
+	$BUILDDIR/setCrossEnvironment.sh \
+	sh -c 'cd libportable && \
+	$CC $CFLAGS -c '"$NDK/sources/android/cpufeatures/*.c"' && \
+	ar rcs ../libportable.a *.o' || exit 1
 } || exit 1
 
 # =========== libpixman-1.a ===========
 
 [ -e libpixman-1.a ] || {
-curl http://cairographics.org/releases/pixman-0.30.2.tar.gz | tar xvz || exit 1
-cd pixman-0.30.2
+PKGURL=http://cairographics.org/releases/pixman-0.30.2.tar.gz
+PKGDIR=`basename --suffix=.tar.gz $PKGURL`
+echo $PKGDIR: $PKGURL
+[ -e ../$PKGDIR.tar.gz ] || curl $PKGURL -o ../$PKGDIR.tar.gz || rm ../$PKGDIR.tar.gz
+tar xvzf ../$PKGDIR.tar.gz || exit 1
+cd $PKGDIR
 
-env CFLAGS="-I$NDK/sources/android/cpufeatures" \
-LDFLAGS="-L$NDK/sources/android/libportable/libs/$TARGET_ARCH -lportable" \
+env CFLAGS="-I$NDK/sources/android/cpufeatures -DSO_REUSEADDR=1" \
+LDFLAGS="-L$BUILDDIR -lportable" \
 $BUILDDIR/setCrossEnvironment.sh \
 ./configure \
 --host=$TARGET_HOST \
 --disable-arm-iwmmxt
+
+sed -i "s/TOOLCHAIN_SUPPORTS_ATTRIBUTE_CONSTRUCTOR/DISABLE_TOOLCHAIN_SUPPORTS_ATTRIBUTE_CONSTRUCTOR/g" config.h
 
 cd pixman
 touch *.S
@@ -331,21 +442,24 @@ $BUILDDIR/setCrossEnvironment.sh \
 make -j$NCPU V=1 2>&1 || exit 1
 
 cd $BUILDDIR
-ln -sf $BUILDDIR/pixman-0.30.2/pixman/.libs/libpixman-1.a $BUILDDIR/libpixman-1.a
+ln -sf $BUILDDIR/$PKGDIR/pixman/.libs/libpixman-1.a $BUILDDIR/libpixman-1.a
 } || exit 1
 
 # =========== libfontenc.a ===========
 
 [ -e libfontenc.a ] || {
-curl http://cgit.freedesktop.org/xorg/lib/libfontenc/snapshot/libfontenc-1.1.2.tar.gz | tar xvz || exit 1
-
-cd libfontenc-1.1.2
+PKGURL=https://cgit.freedesktop.org/xorg/lib/libfontenc/snapshot/libfontenc-1.1.2.tar.gz
+PKGDIR=`basename --suffix=.tar.gz $PKGURL`
+echo $PKGDIR: $PKGURL
+[ -e ../$PKGDIR.tar.gz ] || curl $PKGURL -o ../$PKGDIR.tar.gz || rm ../$PKGDIR.tar.gz
+tar xvzf ../$PKGDIR.tar.gz || exit 1
+cd $PKGDIR
 
 [ -e configure ] || \
 autoreconf -v --install \
 || exit 1
 
-env CFLAGS="-isystem$BUILDDIR -include strings.h" \
+env CFLAGS="-isystem$BUILDDIR -include strings.h -DSO_REUSEADDR=1" \
 $BUILDDIR/setCrossEnvironment.sh \
 ./configure \
 --host=$TARGET_HOST \
@@ -362,8 +476,8 @@ $BUILDDIR/setCrossEnvironment.sh \
 make -j$NCPU V=1 2>&1 || exit 1
 
 cd $BUILDDIR
-ln -sf ../libfontenc-1.1.2/include/X11/fonts/fontenc.h X11/fonts/
-ln -sf libfontenc-1.1.2/src/.libs/libfontenc.a ./
+ln -sf ../$PKGDIR/include/X11/fonts/fontenc.h X11/fonts/
+ln -sf $PKGDIR/src/.libs/libfontenc.a ./
 } || exit 1
 
 # =========== libXfont.a ===========
@@ -371,9 +485,12 @@ ln -sf libfontenc-1.1.2/src/.libs/libfontenc.a ./
 ln -sf $BUILDDIR/../../../../../../obj/local/$TARGET_ARCH/libfreetype.a $BUILDDIR/
 
 [ -e libXfont.a ] || {
-curl http://cgit.freedesktop.org/xorg/lib/libXfont/snapshot/libXfont-1.4.6.tar.gz | tar xvz || exit 1
-
-cd libXfont-1.4.6
+PKGURL=https://cgit.freedesktop.org/xorg/lib/libXfont/snapshot/libXfont-1.4.6.tar.gz
+PKGDIR=`basename --suffix=.tar.gz $PKGURL`
+echo $PKGDIR: $PKGURL
+[ -e ../$PKGDIR.tar.gz ] || curl $PKGURL -o ../$PKGDIR.tar.gz || rm ../$PKGDIR.tar.gz
+tar xvzf ../$PKGDIR.tar.gz || exit 1
+cd $PKGDIR
 
 [ -e configure ] || \
 autoreconf -v --install \
@@ -382,7 +499,7 @@ autoreconf -v --install \
 env CFLAGS="-isystem$BUILDDIR \
 -include strings.h \
 -I$BUILDDIR/../../../../../../jni/freetype/include \
--DNO_LOCALE" \
+-DNO_LOCALE -DSO_REUSEADDR=1" \
 LDFLAGS="-L$BUILDDIR" \
 $BUILDDIR/setCrossEnvironment.sh \
 ./configure \
@@ -401,8 +518,8 @@ $BUILDDIR/setCrossEnvironment.sh \
 make -j$NCPU V=1 2>&1 || exit 1
 
 cd $BUILDDIR
-ln -sf libXfont-1.4.6/src/.libs/libXfont.a ./
-for F in libXfont-1.4.6/include/X11/fonts/* ; do
+ln -sf $PKGDIR/src/.libs/libXfont.a ./
+for F in $PKGDIR/include/X11/fonts/* ; do
 ln -sf ../$F X11/fonts/
 done
 } || exit 1
@@ -410,16 +527,19 @@ done
 # =========== libXau.a ==========
 
 [ -e libXau.a ] || {
-curl http://cgit.freedesktop.org/xorg/lib/libXau/snapshot/libXau-1.0.8.tar.gz | tar xvz || exit 1
-
-cd libXau-1.0.8
+PKGURL=https://cgit.freedesktop.org/xorg/lib/libXau/snapshot/libXau-1.0.8.tar.gz
+PKGDIR=`basename --suffix=.tar.gz $PKGURL`
+echo $PKGDIR: $PKGURL
+[ -e ../$PKGDIR.tar.gz ] || curl $PKGURL -o ../$PKGDIR.tar.gz || rm ../$PKGDIR.tar.gz
+tar xvzf ../$PKGDIR.tar.gz || exit 1
+cd $PKGDIR
 
 [ -e configure ] || \
 autoreconf -v --install \
 || exit 1
 
 env CFLAGS="-isystem$BUILDDIR \
--include strings.h" \
+-include strings.h -DSO_REUSEADDR=1" \
 LDFLAGS="-L$BUILDDIR" \
 $BUILDDIR/setCrossEnvironment.sh \
 ./configure \
@@ -437,23 +557,26 @@ $BUILDDIR/setCrossEnvironment.sh \
 make -j$NCPU V=1 2>&1 || exit 1
 
 cd $BUILDDIR
-ln -sf libXau-1.0.8/.libs/libXau.a ./
-ln -sf ../libXau-1.0.8/include/X11/Xauth.h X11/
+ln -sf $PKGDIR/.libs/libXau.a ./
+ln -sf ../$PKGDIR/include/X11/Xauth.h X11/
 } || exit 1
 
 # =========== libXdmcp.a ==========
 
 [ -e libXdmcp.a ] || {
-curl http://cgit.freedesktop.org/xorg/lib/libXdmcp/snapshot/libXdmcp-1.1.1.tar.gz | tar xvz || exit 1
-
-cd libXdmcp-1.1.1
+PKGURL=https://cgit.freedesktop.org/xorg/lib/libXdmcp/snapshot/libXdmcp-1.1.1.tar.gz
+PKGDIR=`basename --suffix=.tar.gz $PKGURL`
+echo $PKGDIR: $PKGURL
+[ -e ../$PKGDIR.tar.gz ] || curl $PKGURL -o ../$PKGDIR.tar.gz || rm ../$PKGDIR.tar.gz
+tar xvzf ../$PKGDIR.tar.gz || exit 1
+cd $PKGDIR
 
 [ -e configure ] || \
 autoreconf -v --install \
 || exit 1
 
 env CFLAGS="-isystem$BUILDDIR \
--include strings.h" \
+-include strings.h -DSO_REUSEADDR=1" \
 LDFLAGS="-L$BUILDDIR" \
 $BUILDDIR/setCrossEnvironment.sh \
 ./configure \
@@ -471,14 +594,19 @@ $BUILDDIR/setCrossEnvironment.sh \
 make -j$NCPU V=1 2>&1 || exit 1
 
 cd $BUILDDIR
-ln -sf libXdmcp-1.1.1/.libs/libXdmcp.a ./
-ln -sf ../libXdmcp-1.1.1/include/X11/Xdmcp.h X11/
+ln -sf $PKGDIR/.libs/libXdmcp.a ./
+ln -sf ../$PKGDIR/include/X11/Xdmcp.h X11/
 } || exit 1
 
 # =========== xcbproto ===========
 [ -e proto-1.8 ] || {
-curl http://cgit.freedesktop.org/xcb/proto/snapshot/proto-1.8.tar.gz | tar xvz || exit 1
-cd proto-1.8
+PKGURL=https://cgit.freedesktop.org/xcb/proto/snapshot/proto-1.8.tar.gz
+PKGDIR=`basename --suffix=.tar.gz $PKGURL`
+echo $PKGDIR: $PKGURL
+[ -e ../$PKGDIR.tar.gz ] || curl $PKGURL -o ../$PKGDIR.tar.gz || rm ../$PKGDIR.tar.gz
+tar xvzf ../$PKGDIR.tar.gz || exit 1
+cd $PKGDIR
+
 $BUILDDIR/setCrossEnvironment.sh \
 ./autogen.sh --host=$TARGET_HOST \
 || exit 1
@@ -490,16 +618,19 @@ cd $BUILDDIR
 # =========== libxcb.a ==========
 
 [ -e libxcb.a ] || {
-curl http://cgit.freedesktop.org/xcb/libxcb/snapshot/libxcb-1.10.tar.gz | tar xvz || exit 1
-
-cd libxcb-1.10
+PKGURL=https://cgit.freedesktop.org/xcb/libxcb/snapshot/libxcb-1.10.tar.gz
+PKGDIR=`basename --suffix=.tar.gz $PKGURL`
+echo $PKGDIR: $PKGURL
+[ -e ../$PKGDIR.tar.gz ] || curl $PKGURL -o ../$PKGDIR.tar.gz || rm ../$PKGDIR.tar.gz
+tar xvzf ../$PKGDIR.tar.gz || exit 1
+cd $PKGDIR
 
 [ -e configure ] || \
 autoreconf -v --install \
 || exit 1
 
 env CFLAGS="-isystem$BUILDDIR \
--include strings.h" \
+-include strings.h -DSO_REUSEADDR=1" \
 LDFLAGS="-L$BUILDDIR" \
 $BUILDDIR/setCrossEnvironment.sh \
 ./configure \
@@ -517,11 +648,11 @@ $BUILDDIR/setCrossEnvironment.sh \
 make -j$NCPU V=1 2>&1 || exit 1
 
 cd $BUILDDIR
-ln -sf libxcb-1.10/src/.libs/libxcb.a ./
+ln -sf $PKGDIR/src/.libs/libxcb.a ./
 mkdir -p xcb
-ln -sf ../libxcb-1.10/src/xcb.h xcb/
-ln -sf ../libxcb-1.10/src/xproto.h xcb/
-ln -sf ../libxcb-1.10/src/xcbext.h xcb/
+ln -sf ../$PKGDIR/src/xcb.h xcb/
+ln -sf ../$PKGDIR/src/xproto.h xcb/
+ln -sf ../$PKGDIR/src/xcbext.h xcb/
 } || exit 1
 
 [ -e libandroid_support.a ] || {
@@ -540,9 +671,12 @@ cd $BUILDDIR
 # =========== libX11.a ==========
 
 [ -e libX11.a ] || {
-curl http://cgit.freedesktop.org/xorg/lib/libX11/snapshot/libX11-1.6.2.tar.gz | tar xvz || exit 1
-
-cd libX11-1.6.2
+PKGURL=https://cgit.freedesktop.org/xorg/lib/libX11/snapshot/libX11-1.6.2.tar.gz
+PKGDIR=`basename --suffix=.tar.gz $PKGURL`
+echo $PKGDIR: $PKGURL
+[ -e ../$PKGDIR.tar.gz ] || curl $PKGURL -o ../$PKGDIR.tar.gz || rm ../$PKGDIR.tar.gz
+tar xvzf ../$PKGDIR.tar.gz || exit 1
+cd $PKGDIR
 
 [ -e configure ] || \
 autoreconf -v --install \
@@ -550,7 +684,7 @@ autoreconf -v --install \
 
 env CFLAGS="-isystem$BUILDDIR \
 			-isystem$BUILDDIR/../android-shmem \
-			-include strings.h" \
+			-include strings.h -DSO_REUSEADDR=1" \
 LDFLAGS="-L$BUILDDIR" \
 $BUILDDIR/setCrossEnvironment.sh \
 LIBS="-lXau -lXdmcp -landroid_support -landroid-shmem" \
@@ -573,8 +707,8 @@ $BUILDDIR/setCrossEnvironment.sh \
 make -j$NCPU V=1 2>&1 || exit 1
 
 cd $BUILDDIR
-ln -sf libX11-1.6.2/src/.libs/libX11.a ./
-for F in libX11-1.6.2/include/X11/*.h ; do
+ln -sf $PKGDIR/src/.libs/libX11.a ./
+for F in $PKGDIR/include/X11/*.h ; do
 ln -sf ../$F X11
 done
 } || exit 1
@@ -582,11 +716,11 @@ done
 # =========== libXext.a ==========
 
 [ -e libXext.a ] || {
-PKGURL=http://cgit.freedesktop.org/xorg/lib/libXext/snapshot/libXext-1.3.2.tar.gz
+PKGURL=https://cgit.freedesktop.org/xorg/lib/libXext/snapshot/libXext-1.3.2.tar.gz
 PKGDIR=`basename --suffix=.tar.gz $PKGURL`
 echo $PKGDIR: $PKGURL
-curl $PKGURL | tar xvz || exit 1
-
+[ -e ../$PKGDIR.tar.gz ] || curl $PKGURL -o ../$PKGDIR.tar.gz || rm ../$PKGDIR.tar.gz
+tar xvzf ../$PKGDIR.tar.gz || exit 1
 cd $PKGDIR
 
 [ -e configure ] || \
@@ -594,7 +728,7 @@ autoreconf -v --install \
 || exit 1
 
 env CFLAGS="-isystem$BUILDDIR \
--include strings.h" \
+-include strings.h -DSO_REUSEADDR=1" \
 LDFLAGS="-L$BUILDDIR" \
 LIBS="-lxcb -lXau -lXdmcp -landroid_support" \
 $BUILDDIR/setCrossEnvironment.sh \
@@ -622,11 +756,11 @@ done
 # =========== libXrender.a ==========
 
 [ -e libXrender.a ] || {
-PKGURL=http://cgit.freedesktop.org/xorg/lib/libXrender/snapshot/libXrender-0.9.8.tar.gz
+PKGURL=https://cgit.freedesktop.org/xorg/lib/libXrender/snapshot/libXrender-0.9.8.tar.gz
 PKGDIR=`basename --suffix=.tar.gz $PKGURL`
 echo $PKGDIR: $PKGURL
-curl $PKGURL | tar xvz || exit 1
-
+[ -e ../$PKGDIR.tar.gz ] || curl $PKGURL -o ../$PKGDIR.tar.gz || rm ../$PKGDIR.tar.gz
+tar xvzf ../$PKGDIR.tar.gz || exit 1
 cd $PKGDIR
 
 [ -e configure ] || \
@@ -634,7 +768,7 @@ autoreconf -v --install \
 || exit 1
 
 env CFLAGS="-isystem$BUILDDIR \
--include strings.h" \
+-include strings.h -DSO_REUSEADDR=1" \
 LDFLAGS="-L$BUILDDIR" \
 LIBS="-lxcb -lXau -lXdmcp -landroid_support" \
 $BUILDDIR/setCrossEnvironment.sh \
@@ -662,11 +796,11 @@ done
 # =========== libXrandr.a ==========
 
 [ -e libXrandr.a ] || {
-PKGURL=http://cgit.freedesktop.org/xorg/lib/libXrandr/snapshot/libXrandr-1.4.2.tar.gz
+PKGURL=https://cgit.freedesktop.org/xorg/lib/libXrandr/snapshot/libXrandr-1.4.2.tar.gz
 PKGDIR=`basename --suffix=.tar.gz $PKGURL`
 echo $PKGDIR: $PKGURL
-curl $PKGURL | tar xvz || exit 1
-
+[ -e ../$PKGDIR.tar.gz ] || curl $PKGURL -o ../$PKGDIR.tar.gz || rm ../$PKGDIR.tar.gz
+tar xvzf ../$PKGDIR.tar.gz || exit 1
 cd $PKGDIR
 
 [ -e configure ] || \
@@ -674,7 +808,7 @@ autoreconf -v --install \
 || exit 1
 
 env CFLAGS="-isystem$BUILDDIR \
--include strings.h" \
+-include strings.h -DSO_REUSEADDR=1" \
 LDFLAGS="-L$BUILDDIR" \
 LIBS="-lxcb -lXau -lXdmcp -landroid_support" \
 $BUILDDIR/setCrossEnvironment.sh \
@@ -702,16 +836,19 @@ done
 # =========== libxkbfile.a ==========
 
 [ -e libxkbfile.a ] || {
-curl http://cgit.freedesktop.org/xorg/lib/libxkbfile/snapshot/libxkbfile-1.0.8.tar.gz | tar xvz || exit 1
-
-cd libxkbfile-1.0.8
+PKGURL=https://cgit.freedesktop.org/xorg/lib/libxkbfile/snapshot/libxkbfile-1.0.8.tar.gz
+PKGDIR=`basename --suffix=.tar.gz $PKGURL`
+echo $PKGDIR: $PKGURL
+[ -e ../$PKGDIR.tar.gz ] || curl $PKGURL -o ../$PKGDIR.tar.gz || rm ../$PKGDIR.tar.gz
+tar xvzf ../$PKGDIR.tar.gz || exit 1
+cd $PKGDIR
 
 [ -e configure ] || \
 autoreconf -v --install \
 || exit 1
 
 env CFLAGS="-isystem$BUILDDIR \
--include strings.h" \
+-include strings.h -DSO_REUSEADDR=1" \
 LDFLAGS="-L$BUILDDIR" \
 LIBS="-lxcb -lXau -lXdmcp -landroid_support" \
 $BUILDDIR/setCrossEnvironment.sh \
@@ -730,25 +867,28 @@ $BUILDDIR/setCrossEnvironment.sh \
 make -j$NCPU V=1 2>&1 || exit 1
 
 cd $BUILDDIR
-ln -sf libxkbfile-1.0.8/src/.libs/libxkbfile.a ./
-for F in libxkbfile-1.0.8/include/X11/extensions/*.h ; do
+ln -sf $PKGDIR/src/.libs/libxkbfile.a ./
+for F in $PKGDIR/include/X11/extensions/*.h ; do
 ln -sf ../$F X11/extensions/
 done
 } || exit 1
 
 # =========== xkbcomp binary ==========
 
-[ -e xkbcomp ] || {
-curl http://cgit.freedesktop.org/xorg/app/xkbcomp/snapshot/xkbcomp-1.2.4.tar.gz | tar xvz || exit 1
-
-cd xkbcomp-1.2.4
+[ -e xkbcomp -a -e pie/xkbcomp ] || {
+PKGURL=https://cgit.freedesktop.org/xorg/app/xkbcomp/snapshot/xkbcomp-1.2.4.tar.gz
+PKGDIR=`basename --suffix=.tar.gz $PKGURL`
+echo $PKGDIR: $PKGURL
+[ -e ../$PKGDIR.tar.gz ] || curl $PKGURL -o ../$PKGDIR.tar.gz || rm ../$PKGDIR.tar.gz
+tar xvzf ../$PKGDIR.tar.gz || exit 1
+cd $PKGDIR
 
 [ -e configure ] || \
 autoreconf -v --install \
 || exit 1
 
 env CFLAGS="-isystem$BUILDDIR \
--include strings.h" \
+-include strings.h -Os -DSO_REUSEADDR=1" \
 LDFLAGS="-L$BUILDDIR" \
 LIBS="-lxcb -lXau -lXdmcp -landroid_support -lX11" \
 $BUILDDIR/setCrossEnvironment.sh \
@@ -767,18 +907,56 @@ $BUILDDIR/setCrossEnvironment.sh \
 make -j$NCPU V=1 2>&1 || exit 1
 
 cd $BUILDDIR
-cp -f xkbcomp-1.2.4/xkbcomp ./
+cp -f $PKGDIR/xkbcomp ./
 $BUILDDIR/setCrossEnvironment.sh \
 sh -c '$STRIP xkbcomp'
+} || exit 1
+
+mkdir -p pie
+
+[ -e pie/xkbcomp ] || {
+cd pie
+tar xvzf ../../$PKGDIR.tar.gz || exit 1
+cd $PKGDIR
+
+[ -e configure ] || \
+autoreconf -v --install \
+|| exit 1
+
+env CFLAGS="-isystem$BUILDDIR \
+-include strings.h -Os -DSO_REUSEADDR=1" \
+LDFLAGS="-pie -L$BUILDDIR" \
+LIBS="-lxcb -lXau -lXdmcp -landroid_support -lX11" \
+$BUILDDIR/setCrossEnvironment.sh \
+./configure \
+--host=$TARGET_HOST \
+--prefix=$TARGET_DIR/usr \
+|| exit 1
+
+cp -f `which libtool` ./
+
+$BUILDDIR/setCrossEnvironment.sh \
+sh -c 'ln -sf $CC gcc'
+
+env PATH=`pwd`:$PATH \
+$BUILDDIR/setCrossEnvironment.sh \
+make -j$NCPU V=1 2>&1 || exit 1
+
+cd $BUILDDIR/pie
+cp -f $PKGDIR/xkbcomp ./
+$BUILDDIR/setCrossEnvironment.sh \
+sh -c '$STRIP xkbcomp'
+cd $BUILDDIR
 } || exit 1
 
 # =========== libICE.a ==========
 
 [ -e libICE.a ] || {
-PKGURL=http://cgit.freedesktop.org/xorg/lib/libICE/snapshot/libICE-1.0.8.tar.gz
+PKGURL=https://cgit.freedesktop.org/xorg/lib/libICE/snapshot/libICE-1.0.8.tar.gz
 PKGDIR=`basename --suffix=.tar.gz $PKGURL`
 echo $PKGDIR: $PKGURL
-curl $PKGURL | tar xvz || exit 1
+[ -e ../$PKGDIR.tar.gz ] || curl $PKGURL -o ../$PKGDIR.tar.gz || rm ../$PKGDIR.tar.gz
+tar xvzf ../$PKGDIR.tar.gz || exit 1
 cd $PKGDIR
 
 [ -e configure ] || \
@@ -788,7 +966,7 @@ autoreconf -v --install \
 #LIBS="-lxcb -lXau -lXdmcp -landroid_support" \
 
 env CFLAGS="-isystem$BUILDDIR \
--include strings.h" \
+-include strings.h -DSO_REUSEADDR=1" \
 LDFLAGS="-L$BUILDDIR" \
 $BUILDDIR/setCrossEnvironment.sh \
 ./configure \
@@ -813,11 +991,11 @@ ln -sf ../$PKGDIR/include/X11/ICE X11/
 # =========== libSM.a ==========
 
 [ -e libSM.a ] || {
-PKGURL=http://cgit.freedesktop.org/xorg/lib/libSM/snapshot/libSM-1.2.2.tar.gz
+PKGURL=https://cgit.freedesktop.org/xorg/lib/libSM/snapshot/libSM-1.2.2.tar.gz
 PKGDIR=`basename --suffix=.tar.gz $PKGURL`
 echo $PKGDIR: $PKGURL
-curl $PKGURL | tar xvz || exit 1
-
+[ -e ../$PKGDIR.tar.gz ] || curl $PKGURL -o ../$PKGDIR.tar.gz || rm ../$PKGDIR.tar.gz
+tar xvzf ../$PKGDIR.tar.gz || exit 1
 cd $PKGDIR
 
 [ -e configure ] || \
@@ -827,12 +1005,13 @@ autoreconf -v --install \
 #LIBS="-lxcb -lXau -lXdmcp -landroid_support" \
 
 env CFLAGS="-isystem$BUILDDIR \
--include strings.h" \
+-include strings.h -DSO_REUSEADDR=1" \
 LDFLAGS="-L$BUILDDIR" \
 $BUILDDIR/setCrossEnvironment.sh \
 ./configure \
 --host=$TARGET_HOST \
 --prefix=$TARGET_DIR/usr \
+--without-libuuid \
 || exit 1
 
 cp -f `which libtool` ./
@@ -852,10 +1031,11 @@ ln -sf ../$PKGDIR/include/X11/SM X11/
 # =========== libXt.a ==========
 
 [ -e libXt.a ] || {
-PKGURL=http://cgit.freedesktop.org/xorg/lib/libXt/snapshot/libXt-1.1.4.tar.gz
+PKGURL=https://cgit.freedesktop.org/xorg/lib/libXt/snapshot/libXt-1.1.4.tar.gz
 PKGDIR=`basename --suffix=.tar.gz $PKGURL`
 echo $PKGDIR: $PKGURL
-curl $PKGURL | tar xvz || exit 1
+[ -e ../$PKGDIR.tar.gz ] || curl $PKGURL -o ../$PKGDIR.tar.gz || rm ../$PKGDIR.tar.gz
+tar xvzf ../$PKGDIR.tar.gz || exit 1
 cd $PKGDIR
 
 [ -e configure ] || \
@@ -863,7 +1043,7 @@ autoreconf -v --install \
 || exit 1
 
 env CFLAGS="-isystem$BUILDDIR \
--include strings.h" \
+-include strings.h -DSO_REUSEADDR=1" \
 LDFLAGS="-L$BUILDDIR" \
 LIBS="-lxcb -lXau -lXdmcp -landroid_support" \
 $BUILDDIR/setCrossEnvironment.sh \
@@ -895,10 +1075,11 @@ done
 # =========== libXmu.a ==========
 
 [ -e libXmu.a ] || {
-PKGURL=http://cgit.freedesktop.org/xorg/lib/libXmu/snapshot/libXmu-1.1.2.tar.gz
+PKGURL=https://cgit.freedesktop.org/xorg/lib/libXmu/snapshot/libXmu-1.1.2.tar.gz
 PKGDIR=`basename --suffix=.tar.gz $PKGURL`
 echo $PKGDIR: $PKGURL
-curl $PKGURL | tar xvz || exit 1
+[ -e ../$PKGDIR.tar.gz ] || curl $PKGURL -o ../$PKGDIR.tar.gz || rm ../$PKGDIR.tar.gz
+tar xvzf ../$PKGDIR.tar.gz || exit 1
 cd $PKGDIR
 
 [ -e configure ] || \
@@ -906,7 +1087,7 @@ autoreconf -v --install \
 || exit 1
 
 env CFLAGS="-isystem$BUILDDIR \
--include strings.h" \
+-include strings.h -DSO_REUSEADDR=1" \
 LDFLAGS="-L$BUILDDIR" \
 LIBS="-lxcb -lXau -lXdmcp -landroid_support -lSM -lICE" \
 $BUILDDIR/setCrossEnvironment.sh \
@@ -932,11 +1113,12 @@ ln -sf ../$PKGDIR/include/X11/Xmu X11/
 
 # =========== xhost binary ==========
 
-[ -e xhost ] || {
-PKGURL=http://cgit.freedesktop.org/xorg/app/xhost/snapshot/xhost-1.0.6.tar.gz
+[ -e xhost -a -e pie/xhost ] || {
+PKGURL=https://cgit.freedesktop.org/xorg/app/xhost/snapshot/xhost-1.0.6.tar.gz
 PKGDIR=`basename --suffix=.tar.gz $PKGURL`
 echo $PKGDIR: $PKGURL
-curl $PKGURL | tar xvz || exit 1
+[ -e ../$PKGDIR.tar.gz ] || curl $PKGURL -o ../$PKGDIR.tar.gz || rm ../$PKGDIR.tar.gz
+tar xvzf ../$PKGDIR.tar.gz || exit 1
 cd $PKGDIR
 
 [ -e configure ] || \
@@ -945,7 +1127,7 @@ autoreconf -v --install \
 
 env CFLAGS="-isystem$BUILDDIR \
 -include strings.h \
--Dsethostent=abs -Dendhostent=sync" \
+-Dsethostent=abs -Dendhostent=sync -Os -DSO_REUSEADDR=1" \
 LDFLAGS="-L$BUILDDIR" \
 LIBS="-lxcb -lXau -lXdmcp -landroid_support -lX11" \
 $BUILDDIR/setCrossEnvironment.sh \
@@ -969,23 +1151,63 @@ $BUILDDIR/setCrossEnvironment.sh \
 sh -c '$STRIP xhost'
 } || exit 1
 
+[ -e pie/xhost ] || {
+cd pie
+tar xvzf ../../$PKGDIR.tar.gz || exit 1
+cd $PKGDIR
+
+[ -e configure ] || \
+autoreconf -v --install \
+|| exit 1
+
+env CFLAGS="-isystem$BUILDDIR \
+-include strings.h \
+-Dsethostent=abs -Dendhostent=sync -Os -DSO_REUSEADDR=1" \
+LDFLAGS="-pie -L$BUILDDIR" \
+LIBS="-lxcb -lXau -lXdmcp -landroid_support -lX11" \
+$BUILDDIR/setCrossEnvironment.sh \
+./configure \
+--host=$TARGET_HOST \
+--prefix=$TARGET_DIR/usr \
+|| exit 1
+
+cp -f `which libtool` ./
+
+$BUILDDIR/setCrossEnvironment.sh \
+sh -c 'ln -sf $CC gcc'
+
+env PATH=`pwd`:$PATH \
+$BUILDDIR/setCrossEnvironment.sh \
+make -j$NCPU V=1 2>&1 || exit 1
+
+cd $BUILDDIR/pie
+cp -f $PKGDIR/xhost ./
+$BUILDDIR/setCrossEnvironment.sh \
+sh -c '$STRIP xhost'
+cd $BUILDDIR
+} || exit 1
+
 # =========== xli binary ==========
 
-[ -e xli ] || {
+[ -e xli -a -e pie/xli ] || {
 PKGURL=http://web.aanet.com.au/gwg/xli-1.16.tar.gz
 PKGDIR=`basename --suffix=.tar.gz $PKGURL`
 echo $PKGDIR: $PKGURL
-curl $PKGURL | tar xvz || exit 1
+[ -e ../$PKGDIR.tar.gz ] || curl $PKGURL -o ../$PKGDIR.tar.gz || rm ../$PKGDIR.tar.gz
+tar xvzf ../$PKGDIR.tar.gz || exit 1
 cd $PKGDIR
 
-echo "SRCS = bright.c clip.c cmuwmrast.c compress.c dither.c faces.c fbm.c \
+echo "SRCS := bright.c clip.c cmuwmrast.c compress.c dither.c faces.c fbm.c \
       fill.c  g3.c gif.c halftone.c imagetypes.c img.c mac.c mcidas.c \
       mc_tables.c merge.c misc.c new.c options.c path.c pbm.c pcx.c \
       reduce.c jpeg.c jpeglib.c rle.c rlelib.c root.c rotate.c send.c smooth.c \
       sunraster.c value.c window.c xbitmap.c xli.c \
       xpixmap.c xwd.c zio.c zoom.c ddxli.c doslib.c tga.c bmp.c pcd.c " > Makefile
-echo 'xli: $(SRCS)' >> Makefile
-echo '	$(CC) $(CFLAGS) $(SRCS) -o xli $(LDFLAGS) -lX11 -lxcb -lXau -lXdmcp -landroid_support -lm' >> Makefile
+echo 'OBJS := $(SRCS:%.c=%.o)' >> Makefile
+echo '%.o: %.c' >> Makefile
+echo '	$(CC) $(CFLAGS) $(PIE) $(if $(filter compress.c, $+), -O0) -c $+ -o $@' >> Makefile
+echo 'xli: $(OBJS)' >> Makefile
+echo '	$(CC) $(CFLAGS) $+ -o $@ $(LDFLAGS) $(PIE) -lX11 -lxcb -lXau -lXdmcp -landroid_support -lm' >> Makefile
 
 echo '#include <stdarg.h>' > varargs.h
 
@@ -997,11 +1219,13 @@ env CFLAGS="-isystem$BUILDDIR \
 -include math.h \
 -include stdlib.h \
 -include string.h \
--Drindex=strchr \
--isystem ." \
+-Dindex=strchr \
+-Drindex=strrchr \
+-isystem . \
+-Os" \
 LDFLAGS="-L$BUILDDIR" \
 $BUILDDIR/setCrossEnvironment.sh \
-make V=1 2>&1 || exit 1
+make V=1 PIE= 2>&1 || exit 1
 
 cd $BUILDDIR
 cp -f $PKGDIR/xli ./
@@ -1009,16 +1233,48 @@ $BUILDDIR/setCrossEnvironment.sh \
 sh -c '$STRIP xli'
 } || exit 1
 
+[ -e pie/xli ] || {
+cd pie
+tar xvzf ../../$PKGDIR.tar.gz || exit 1
+cd $PKGDIR
+
+cp -f ../../$PKGDIR/Makefile ./
+cp -f ../../$PKGDIR/varargs.h ./
+
+sed -i 's/extern int errno;//' *.c
+
+env CFLAGS="-isystem$BUILDDIR \
+-include strings.h \
+-include sys/select.h \
+-include math.h \
+-include stdlib.h \
+-include string.h \
+-Dindex=strchr \
+-Drindex=strrchr \
+-isystem . \
+-Os" \
+LDFLAGS="-L$BUILDDIR" \
+$BUILDDIR/setCrossEnvironment.sh \
+make V=1 PIE=-pie 2>&1 || exit 1
+
+cd $BUILDDIR/pie
+cp -f $PKGDIR/xli ./
+$BUILDDIR/setCrossEnvironment.sh \
+sh -c '$STRIP xli'
+cd $BUILDDIR
+} || exit 1
+
 # =========== xsel binary ==========
 
-[ -e xsel ] || {
+[ -e xsel -a -e pie/xsel ] || {
 PKGURL=https://github.com/kfish/xsel/archive/master.tar.gz
 PKGDIR=xsel-master
 echo $PKGDIR: $PKGURL
-curl -L $PKGURL | tar xvz || exit 1
+[ -e ../$PKGDIR.tar.gz ] || curl -L $PKGURL -o ../$PKGDIR.tar.gz || rm ../$PKGDIR.tar.gz
+tar xvzf ../$PKGDIR.tar.gz || exit 1
 cd $PKGDIR
 
-env CFLAGS="-isystem$BUILDDIR -Drpl_malloc=malloc" \
+env CFLAGS="-isystem$BUILDDIR -Drpl_malloc=malloc -Os" \
 LDFLAGS="-L$BUILDDIR" \
 LIBS="-lX11 -lxcb -lXau -lXdmcp -landroid_support" \
 $BUILDDIR/setCrossEnvironment.sh \
@@ -1034,11 +1290,33 @@ $BUILDDIR/setCrossEnvironment.sh \
 sh -c '$STRIP xsel'
 } || exit 1
 
+[ -e pie/xsel ] || {
+cd pie
+tar xvzf ../../$PKGDIR.tar.gz || exit 1
+cd $PKGDIR
+
+env CFLAGS="-isystem$BUILDDIR -Drpl_malloc=malloc -Os" \
+LDFLAGS="-pie -L$BUILDDIR" \
+LIBS="-lX11 -lxcb -lXau -lXdmcp -landroid_support" \
+$BUILDDIR/setCrossEnvironment.sh \
+./autogen.sh --host=$TARGET_HOST \
+|| exit 1
+
+$BUILDDIR/setCrossEnvironment.sh \
+make V=1 2>&1 || exit 1
+
+cd $BUILDDIR/pie
+cp -f $PKGDIR/xsel ./ || exit 1
+$BUILDDIR/setCrossEnvironment.sh \
+sh -c '$STRIP xsel'
+cd $BUILDDIR
+} || exit 1
+
 # =========== xsdl ==========
 
 ln -sf $BUILDDIR/../../../../../../libs/$TARGET_ARCH/libsdl-1.2.so $BUILDDIR/libSDL.so
-ln -sf $NDK/sources/android/libportable/libs/$TARGET_ARCH/libportable.a $BUILDDIR/libpthread.a # dummy
-ln -sf $NDK/sources/android/libportable/libs/$TARGET_ARCH/libportable.a $BUILDDIR/libts.a # dummy
+ln -sf $BUILDDIR/libportable.a $BUILDDIR/libpthread.a # dummy
+ln -sf $BUILDDIR/libportable.a $BUILDDIR/libts.a # dummy
 
 [ -z "$PACKAGE_NAME" ] && PACKAGE_NAME=X.org.server
 
@@ -1051,12 +1329,16 @@ env CFLAGS=" -DDEBUG \
 	-DFNONBLOCK=O_NONBLOCK \
 	-DFNDELAY=O_NDELAY \
 	-D_LINUX_IPC_H \
+	-DSO_REUSEADDR=1 \
 	-Dipc_perm=debian_ipc_perm \
 	-I$BUILDDIR/pixman-0.30.2/pixman \
-	-I$BUILDDIR/../../../../../../jni/sdl-1.2/include" \
-LDFLAGS="-L$BUILDDIR" \
+	-I$BUILDDIR/../../../../../../jni/sdl-1.2/include \
+	-I$BUILDDIR/../../../../../../jni/crypto/include" \
+LDFLAGS="-L$BUILDDIR -L$BUILDDIR/../../../../../../jni/crypto/lib-$TARGET_ARCH" \
 ./setCrossEnvironment.sh \
-LIBS="-lfontenc -lfreetype -llog -lSDL -lGLESv1_CM -landroid-shmem" \
+LIBS="-lfontenc -lfreetype -llog -lSDL -lGLESv1_CM -landroid-shmem -l:libcrypto.so.sdl.0.so" \
+OPENSSL_LIBS=-l:libcrypto.so.sdl.0.so \
+LIBSHA1_LIBS=-l:libcrypto.so.sdl.0.so \
 ../../configure \
 --host=$TARGET_HOST \
 --prefix=$TARGET_DIR/usr \
@@ -1065,7 +1347,7 @@ LIBS="-lfontenc -lfreetype -llog -lSDL -lGLESv1_CM -landroid-shmem" \
 --disable-xephyr --disable-xfake --disable-xfbdev --disable-unit-tests --disable-tslib \
 --disable-dri --disable-dri2 --disable-glx --disable-xf86vidmode \
 --enable-xsdl --enable-kdrive --enable-kdrive-kbd --enable-kdrive-mouse --enable-kdrive-evdev \
---enable-shm --enable-mitshm \
+--enable-shm --enable-mitshm --disable-config-udev \
 || exit 1
 
 ./setCrossEnvironment.sh make -j$NCPU V=1 2>&1 || exit 1
